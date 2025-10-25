@@ -17,6 +17,16 @@
   --color-secondary-200: #a0b16d;
   --color-secondary-300: #f7bbdc;
   --color-secondary-400: #f6db70;
+
+  /* 📐 Typography Sizes */
+  --font-size-h1: 144px;
+  --font-size-h2: 96px;
+  --font-size-h3: 72px;
+  --font-size-body-lg: 54px;
+  --font-size-body-md: 38px;
+  --font-size-small: 28px;
+  --font-size-button: 64px;
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -157,5 +167,16 @@ body {
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+  }
+
+  /* Typography styles */
+  h1 {
+    font-size: var(--font-size-h1);
+  }
+  h2 {
+    font-size: var(--font-size-h2);
+  }
+  h3 {
+    font-size: var(--font-size-h3);
   }
 }
