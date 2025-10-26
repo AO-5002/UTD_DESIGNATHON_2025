@@ -61,12 +61,28 @@ function DockItem({
   const isHovered = useMotionValue(0);
   const [showHoverState, setShowHoverState] = useState(false);
 
-  const mouseDistance = useTransform(mouseX, (val) => {
-    const rect = ref.current?.getBoundingClientRect() ?? {
-      x: 0,
-      width: baseItemSize,
+  // Cache the bounding rect
+  const rectCache = useRef({ x: 0, width: baseItemSize });
+
+  // Update rect cache only when element mounts or resizes
+  useEffect(() => {
+    const updateRect = () => {
+      if (ref.current) {
+        const rect = ref.current.getBoundingClientRect();
+        rectCache.current = { x: rect.x, width: rect.width };
+      }
     };
-    return val - rect.x - baseItemSize / 2;
+
+    updateRect();
+
+    // Update on window resize
+    window.addEventListener("resize", updateRect);
+    return () => window.removeEventListener("resize", updateRect);
+  }, []);
+
+  // Use cached rect in transform
+  const mouseDistance = useTransform(mouseX, (val) => {
+    return val - rectCache.current.x - rectCache.current.width / 2;
   });
 
   const targetSize = useTransform(
@@ -100,7 +116,7 @@ function DockItem({
         setShowHoverState(false);
       }}
       onClick={onClick}
-      className={`relative inline-flex items-center justify-center rounded-full border-2 transition-all ${
+      className={`relative inline-flex items-center justify-center rounded-full border-2 ${
         showHoverState
           ? "bg-black text-white border-black shadow-md"
           : "bg-transparent text-black border-transparent shadow-none"
