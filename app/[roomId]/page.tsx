@@ -39,37 +39,81 @@ function RoomContent() {
   const [isConsolidating, setIsConsolidating] = useState(false);
   const pieces = useStorage((root) => root.pieces) || [];
 
-  // Calculate grid size based on ALL pieces (regular + consolidated)
+  // Helper function to check if a grid position is occupied by a consolidated piece
+  const isPositionOccupiedByConsolidated = (row: number, col: number) => {
+    const consolidatedPieces = pieces.filter(
+      (p: PieceData) => p.type === "consolidated"
+    );
+    return consolidatedPieces.some((p: PieceData) =>
+      p.gridPositions?.some((pos) => pos.row === row && pos.col === col)
+    );
+  };
+
+  // Get available grid positions for regular pieces (excluding consolidated positions)
+  const getAvailablePositions = useMemo(() => {
+    const consolidatedPieces = pieces.filter(
+      (p: PieceData) => p.type === "consolidated"
+    );
+    const occupiedPositions = new Set<string>();
+
+    consolidatedPieces.forEach((p: PieceData) => {
+      p.gridPositions?.forEach((pos) => {
+        occupiedPositions.add(`${pos.row},${pos.col}`);
+      });
+    });
+
+    return occupiedPositions;
+  }, [pieces]);
+
+  // Calculate grid size based on ALL pieces (regular + space needed)
   const gridSize = useMemo(() => {
     const regularPieces = pieces.filter(
       (p: PieceData) => p.type !== "consolidated"
     );
-    const count = regularPieces.length;
-    if (count === 0) return 3;
+    const totalNeeded = regularPieces.length + getAvailablePositions.size;
+
+    if (totalNeeded === 0) return 3;
 
     let size = 3;
-    while (size * size < count) {
+    while (size * size < totalNeeded) {
       size += 2;
     }
     return size;
-  }, [pieces]);
+  }, [pieces, getAvailablePositions]);
 
-  const getGridPosition = (index: number) => {
-    const row = Math.floor(index / gridSize);
-    const col = index % gridSize;
+  // Get grid position for regular pieces, skipping occupied consolidated positions
+  const getGridPosition = (pieceIndex: number) => {
+    let currentIndex = 0;
+    let gridIndex = 0;
 
-    const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
-    const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
+    // Iterate through grid positions until we find the right one for this piece
+    while (currentIndex <= pieceIndex) {
+      const row = Math.floor(gridIndex / gridSize);
+      const col = gridIndex % gridSize;
 
-    const startX = 500 - totalWidth / 2;
-    const startY = 400 - totalHeight / 2;
+      // If this position is not occupied by consolidated, it counts
+      if (!isPositionOccupiedByConsolidated(row, col)) {
+        if (currentIndex === pieceIndex) {
+          const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
+          const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
 
-    return {
-      x: startX + col * (PIECE_SIZE + GAP),
-      y: startY + row * (PIECE_SIZE + GAP),
-      row,
-      col,
-    };
+          const startX = 500 - totalWidth / 2;
+          const startY = 400 - totalHeight / 2;
+
+          return {
+            x: startX + col * (PIECE_SIZE + GAP),
+            y: startY + row * (PIECE_SIZE + GAP),
+            row,
+            col,
+          };
+        }
+        currentIndex++;
+      }
+      gridIndex++;
+    }
+
+    // Fallback
+    return { x: 0, y: 0, row: 0, col: 0 };
   };
 
   // Convert grid position to pixel position
@@ -145,11 +189,14 @@ function RoomContent() {
       setIsConsolidating(true);
 
       try {
-        // Call OpenAI API
+        // Call OpenAI API with simpler instructions
         const response = await fetch("/api/consolidate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pieces: regularPieces }),
+          body: JSON.stringify({
+            pieces: regularPieces,
+            simple: true, // Flag for simpler output
+          }),
         });
 
         if (!response.ok) {
@@ -184,11 +231,11 @@ function RoomContent() {
           sourceIds: regularPieces.map((p: PieceData) => p.id),
         };
 
-        // Remove regular pieces and add consolidated one
-        const otherPieces = pieces.filter(
+        // Keep other consolidated pieces, but remove the regular pieces that were merged
+        const otherConsolidatedPieces = pieces.filter(
           (p: PieceData) => p.type === "consolidated"
         );
-        storage.set("pieces", [...otherPieces, consolidatedPiece]);
+        storage.set("pieces", [...otherConsolidatedPieces, consolidatedPiece]);
       } catch (error: any) {
         console.error("Error consolidating:", error);
         alert(`Failed to consolidate ideas: ${error.message}`);
@@ -196,7 +243,7 @@ function RoomContent() {
         setIsConsolidating(false);
       }
     },
-    [gridSize, getGridPosition]
+    [getGridPosition]
   );
 
   // Custom navbar items
@@ -265,7 +312,95 @@ function RoomContent() {
             </p>
           </div>
 
-          {/* Regular pieces in grid */}
+          {/* Consolidated pieces - ONE unified block spanning multiple grid cells */}
+          {consolidatedPieces.map((piece: PieceData) => {
+            if (!piece.gridPositions || piece.gridPositions.length === 0) {
+              return null;
+            }
+
+            // Calculate the bounding box for the merged shape
+            const minRow = Math.min(...piece.gridPositions.map((p) => p.row));
+            const maxRow = Math.max(...piece.gridPositions.map((p) => p.row));
+            const minCol = Math.min(...piece.gridPositions.map((p) => p.col));
+            const maxCol = Math.max(...piece.gridPositions.map((p) => p.col));
+
+            const topLeft = gridToPixel(minRow, minCol);
+
+            // Calculate total width and height INCLUDING gaps between cells
+            const numCols = maxCol - minCol + 1;
+            const numRows = maxRow - minRow + 1;
+            const totalWidth = numCols * PIECE_SIZE + (numCols - 1) * GAP;
+            const totalHeight = numRows * PIECE_SIZE + (numRows - 1) * GAP;
+
+            return (
+              <div
+                key={piece.id}
+                className="absolute transition-all duration-700 ease-out group"
+                style={{
+                  left: topLeft.x,
+                  top: topLeft.y,
+                  width: totalWidth,
+                  height: totalHeight,
+                }}
+              >
+                {/* ONE single unified block */}
+                <div
+                  className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl p-4 overflow-y-auto flex flex-col"
+                  style={{
+                    backgroundColor: piece.color,
+                    background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="bg-purple-600 text-white rounded-full p-1.5">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-sm font-bold text-purple-900">
+                      AI Summary
+                    </h3>
+                  </div>
+                  <div className="text-xs text-gray-800 leading-relaxed flex-1">
+                    {piece.text}
+                  </div>
+                  <div className="text-xs text-purple-700 font-medium mt-3 pt-3 border-t border-purple-400">
+                    {piece.sourceIds?.length || 0} ideas merged ({numRows}×
+                    {numCols} grid)
+                  </div>
+                </div>
+
+                {/* Delete button */}
+                <button
+                  onClick={() => deletePiece(piece.id)}
+                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg z-10"
+                  title="Delete merged block"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Regular pieces in grid (avoiding consolidated positions) */}
           {regularPieces.map((piece: PieceData, index: number) => {
             const position = getGridPosition(index);
             return (
@@ -287,76 +422,6 @@ function RoomContent() {
                 />
               </div>
             );
-          })}
-
-          {/* Consolidated pieces - render as individual blocks in their grid positions */}
-          {consolidatedPieces.map((piece: PieceData) => {
-            if (!piece.gridPositions || piece.gridPositions.length === 0) {
-              return null;
-            }
-
-            // Render each grid position as a block
-            return piece.gridPositions.map((gridPos, idx) => {
-              const pixelPos = gridToPixel(gridPos.row, gridPos.col);
-              const isFirst = idx === 0; // Only show full content on first block
-
-              return (
-                <div
-                  key={`${piece.id}-${idx}`}
-                  className="absolute transition-all duration-700 ease-out"
-                  style={{
-                    left: pixelPos.x,
-                    top: pixelPos.y,
-                    width: PIECE_SIZE,
-                    height: PIECE_SIZE,
-                  }}
-                >
-                  <div
-                    className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl overflow-hidden"
-                    style={{
-                      backgroundColor: piece.color,
-                      background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
-                    }}
-                  >
-                    {isFirst ? (
-                      // First block shows the header and scrollable content
-                      <div className="w-full h-full p-4 overflow-y-auto flex flex-col">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="bg-purple-600 text-white rounded-full p-1">
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            >
-                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                            </svg>
-                          </div>
-                          <h3 className="text-xs font-bold text-purple-900">
-                            AI Ideas
-                          </h3>
-                        </div>
-                        <div className="text-[10px] text-gray-800 leading-tight flex-1">
-                          {piece.text}
-                        </div>
-                        <div className="text-[8px] text-purple-700 font-medium mt-2 pt-2 border-t border-purple-400">
-                          {piece.sourceIds?.length || 0} merged
-                        </div>
-                      </div>
-                    ) : (
-                      // Other blocks show continuation indicator
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-purple-900 text-xs font-bold opacity-50">
-                          ↖
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            });
           })}
         </div>
       </InfiniteCanvas>

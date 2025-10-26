@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { pieces } = await req.json();
+    const { pieces, simple = false } = await req.json();
 
     if (!pieces || pieces.length === 0) {
       return NextResponse.json(
@@ -28,10 +28,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create prompt for consolidation
-    const prompt = `You are consolidating ideas from a collaborative workspace. Here are ${
-      pieceTexts.length
-    } ideas from team members:
+    // Create prompt for consolidation - simpler version
+    const prompt = simple
+      ? `Summarize these ${
+          pieceTexts.length
+        } team ideas into ONE concise paragraph (max 3-4 sentences). Focus on the main theme and key takeaway:
+
+${pieceTexts.map((text: any, i: any) => `• ${text}`).join("\n")}
+
+Keep it brief and actionable.`
+      : `You are consolidating ideas from a collaborative workspace. Here are ${
+          pieceTexts.length
+        } ideas from team members:
 
 ${pieceTexts.map((text: any, i: any) => `• ${text}`).join("\n")}
 
@@ -48,8 +56,9 @@ Keep it concise and well-organized. Use bullet points and short paragraphs.`;
       messages: [
         {
           role: "system",
-          content:
-            "You are a helpful assistant that consolidates team ideas into clear, actionable summaries.",
+          content: simple
+            ? "You are a helpful assistant that creates brief, clear summaries. Keep responses under 100 words."
+            : "You are a helpful assistant that consolidates team ideas into clear, actionable summaries.",
         },
         {
           role: "user",
@@ -57,7 +66,7 @@ Keep it concise and well-organized. Use bullet points and short paragraphs.`;
         },
       ],
       temperature: 0.7,
-      max_tokens: 800,
+      max_tokens: simple ? 200 : 800,
     });
 
     const consolidatedText = completion.choices[0].message.content;
