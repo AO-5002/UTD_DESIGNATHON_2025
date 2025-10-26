@@ -3,8 +3,6 @@ import { Children } from "@/util/types/Children";
 import Navbar from "@/components/Navbar";
 import { MenuClickBtn, type SoundBlock } from "@/components/MenuClickBtn";
 import {
-  Home,
-  Users,
   Settings,
   Bell,
   Search,
@@ -17,6 +15,10 @@ import {
   Laugh,
   PartyPopper,
   Volume2,
+  MousePointer2,
+  Lightbulb,
+  Type,
+  MessageSquarePlus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
@@ -135,31 +137,31 @@ function Sidebar() {
 
   const sidebarItems = [
     {
-      icon: <Home size={22} />,
-      label: "Home",
+      icon: <MousePointer2 size={22} />,
+      label: "Select",
       onClick: () => {
         console.log("Home clicked");
         setActiveIndex(0);
       },
     },
     {
-      icon: <Users size={22} />,
-      label: "Team",
+      icon: <Lightbulb size={22} />,
+      label: "Consolidate Ideas",
       onClick: () => {
         console.log("Team clicked");
         setActiveIndex(1);
       },
     },
     {
-      icon: <Bell size={22} />,
-      label: "Notifications",
+      icon: <Type size={22} />,
+      label: "",
       onClick: () => {
         console.log("Notifications clicked");
         setActiveIndex(2);
       },
     },
     {
-      icon: <Search size={22} />,
+      icon: <MessageSquarePlus size={22} />,
       label: "Search",
       onClick: () => {
         console.log("Search clicked");
