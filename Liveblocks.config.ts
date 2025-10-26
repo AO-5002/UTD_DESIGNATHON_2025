@@ -10,8 +10,8 @@ type PieceData = {
   color: string;
   text: string;
   type?: "regular" | "consolidated";
-  gridSpan?: { rows: number; cols: number };
-  sourceIds?: string[];
+  gridPositions?: { row: number; col: number }[]; // For consolidated pieces - positions they occupy
+  sourceIds?: string[]; // IDs of pieces that were merged
 };
 
 type SoundEvent = {

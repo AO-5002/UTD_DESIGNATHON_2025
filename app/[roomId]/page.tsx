@@ -17,7 +17,7 @@ type PieceData = {
   color: string;
   text: string;
   type?: "regular" | "consolidated";
-  gridSpan?: { rows: number; cols: number }; // For consolidated pieces
+  gridPositions?: { row: number; col: number }[]; // Positions this piece occupies
   sourceIds?: string[]; // IDs of original pieces
 };
 
@@ -39,6 +39,7 @@ function RoomContent() {
   const [isConsolidating, setIsConsolidating] = useState(false);
   const pieces = useStorage((root) => root.pieces) || [];
 
+  // Calculate grid size based on ALL pieces (regular + consolidated)
   const gridSize = useMemo(() => {
     const regularPieces = pieces.filter(
       (p: PieceData) => p.type !== "consolidated"
@@ -66,19 +67,22 @@ function RoomContent() {
     return {
       x: startX + col * (PIECE_SIZE + GAP),
       y: startY + row * (PIECE_SIZE + GAP),
+      row,
+      col,
     };
   };
 
-  // Calculate size for consolidated piece that spans the grid
-  const getConsolidatedDimensions = () => {
+  // Convert grid position to pixel position
+  const gridToPixel = (row: number, col: number) => {
     const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
     const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
 
+    const startX = 500 - totalWidth / 2;
+    const startY = 400 - totalHeight / 2;
+
     return {
-      width: totalWidth,
-      height: totalHeight,
-      x: 500 - totalWidth / 2,
-      y: 400 - totalHeight / 2,
+      x: startX + col * (PIECE_SIZE + GAP),
+      y: startY + row * (PIECE_SIZE + GAP),
     };
   };
 
@@ -125,7 +129,7 @@ function RoomContent() {
     storage.set("pieces", [...pieces, newPiece]);
   }, []);
 
-  // Consolidate all pieces with AI
+  // Consolidate all REGULAR pieces with AI
   const consolidateIdeas = useMutation(
     async ({ storage }) => {
       const pieces = storage.get("pieces");
@@ -149,31 +153,50 @@ function RoomContent() {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to consolidate ideas");
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to consolidate ideas");
         }
 
         const { consolidatedText } = await response.json();
 
-        // Create one big consolidated piece
+        // Get all grid positions that regular pieces occupy
+        const regularPiecesWithPositions = regularPieces.map(
+          (p: PieceData, index: number) => {
+            const pos = getGridPosition(index);
+            return {
+              ...p,
+              gridPosition: { row: pos.row, col: pos.col },
+            };
+          }
+        );
+
+        const gridPositions = regularPiecesWithPositions.map(
+          (p: any) => p.gridPosition
+        );
+
+        // Create consolidated piece that occupies those exact positions
         const consolidatedPiece: PieceData = {
           id: `consolidated-${Date.now()}`,
           color: "#e6ccff", // Purple color for AI block
           text: consolidatedText,
           type: "consolidated",
-          gridSpan: { rows: gridSize, cols: gridSize },
+          gridPositions: gridPositions, // Store all positions this piece covers
           sourceIds: regularPieces.map((p: PieceData) => p.id),
         };
 
-        // Replace all pieces with the consolidated one
-        storage.set("pieces", [consolidatedPiece]);
-      } catch (error) {
+        // Remove regular pieces and add consolidated one
+        const otherPieces = pieces.filter(
+          (p: PieceData) => p.type === "consolidated"
+        );
+        storage.set("pieces", [...otherPieces, consolidatedPiece]);
+      } catch (error: any) {
         console.error("Error consolidating:", error);
-        alert("Failed to consolidate ideas. Check console for details.");
+        alert(`Failed to consolidate ideas: ${error.message}`);
       } finally {
         setIsConsolidating(false);
       }
     },
-    [gridSize]
+    [gridSize, getGridPosition]
   );
 
   // Custom navbar items
@@ -209,13 +232,13 @@ function RoomContent() {
   );
 
   return (
-    // @ts-ignore: RoomLayout props type doesn't include onConsolidateIdeas, pass it through for behavior
+    // @ts-ignore: RoomLayout props type doesn't include onConsolidateIdeas
     <RoomLayout navbarItems={navbarItems} onConsolidateIdeas={consolidateIdeas}>
       <InfiniteCanvas>
         <div className="relative">
           {/* Loading overlay */}
           {isConsolidating && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
               <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
                 <p className="text-lg font-semibold text-gray-800">
@@ -236,7 +259,8 @@ function RoomContent() {
                 {gridSize}×{gridSize}
               </span>
               <span className="text-gray-500 ml-2">
-                ({regularPieces.length} pieces)
+                ({regularPieces.length} pieces, {consolidatedPieces.length}{" "}
+                consolidated)
               </span>
             </p>
           </div>
@@ -265,74 +289,74 @@ function RoomContent() {
             );
           })}
 
-          {/* Consolidated pieces (big blocks) */}
+          {/* Consolidated pieces - render as individual blocks in their grid positions */}
           {consolidatedPieces.map((piece: PieceData) => {
-            const dims = getConsolidatedDimensions();
-            return (
-              <div
-                key={piece.id}
-                className="absolute transition-all duration-700 ease-out"
-                style={{
-                  left: dims.x,
-                  top: dims.y,
-                  width: dims.width,
-                  height: dims.height,
-                }}
-              >
+            if (!piece.gridPositions || piece.gridPositions.length === 0) {
+              return null;
+            }
+
+            // Render each grid position as a block
+            return piece.gridPositions.map((gridPos, idx) => {
+              const pixelPos = gridToPixel(gridPos.row, gridPos.col);
+              const isFirst = idx === 0; // Only show full content on first block
+
+              return (
                 <div
-                  className="w-full h-full rounded-3xl border-4 border-purple-600 shadow-2xl p-8 overflow-y-auto"
+                  key={`${piece.id}-${idx}`}
+                  className="absolute transition-all duration-700 ease-out"
                   style={{
-                    backgroundColor: piece.color,
-                    background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                    left: pixelPos.x,
+                    top: pixelPos.y,
+                    width: PIECE_SIZE,
+                    height: PIECE_SIZE,
                   }}
                 >
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-purple-400">
-                    <div className="flex items-center gap-2">
-                      <div className="bg-purple-600 text-white rounded-full p-2">
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                        </svg>
+                  <div
+                    className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl overflow-hidden"
+                    style={{
+                      backgroundColor: piece.color,
+                      background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                    }}
+                  >
+                    {isFirst ? (
+                      // First block shows the header and scrollable content
+                      <div className="w-full h-full p-4 overflow-y-auto flex flex-col">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="bg-purple-600 text-white rounded-full p-1">
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-xs font-bold text-purple-900">
+                            AI Ideas
+                          </h3>
+                        </div>
+                        <div className="text-[10px] text-gray-800 leading-tight flex-1">
+                          {piece.text}
+                        </div>
+                        <div className="text-[8px] text-purple-700 font-medium mt-2 pt-2 border-t border-purple-400">
+                          {piece.sourceIds?.length || 0} merged
+                        </div>
                       </div>
-                      <h2 className="text-2xl font-bold text-purple-900">
-                        AI Consolidated Ideas
-                      </h2>
-                    </div>
-                    <div className="text-sm text-purple-700 font-medium bg-purple-200 px-3 py-1 rounded-full">
-                      {piece.sourceIds?.length || 0} ideas merged
-                    </div>
-                  </div>
-
-                  {/* AI-generated content */}
-                  <div className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {piece.text}
-                  </div>
-
-                  {/* Footer actions */}
-                  <div className="mt-8 pt-4 border-t-2 border-purple-400 flex gap-2">
-                    <button
-                      onClick={() => updatePieceText(piece.id, piece.text)}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deletePiece(piece.id)}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
-                    >
-                      Delete & Start Over
-                    </button>
+                    ) : (
+                      // Other blocks show continuation indicator
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-purple-900 text-xs font-bold opacity-50">
+                          ↖
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            );
+              );
+            });
           })}
         </div>
       </InfiniteCanvas>
