@@ -11,6 +11,10 @@ type Piece = {
   text: string;
 };
 
+type Presence = {
+  cursor: { x: number; y: number } | null;
+};
+
 type Storage = {
   pieces: Piece[];
 };
@@ -22,4 +26,6 @@ export const {
   useRoom,
   useSelf,
   useOthers,
-} = createRoomContext<{}, Storage>(client);
+} = createRoomContext<Presence, Storage>(client);
+
+export type { Piece, Storage, Presence };
