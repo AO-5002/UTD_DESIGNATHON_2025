@@ -16,6 +16,7 @@ import { Blocks, Dices, Video, UserRound } from "lucide-react";
 import { DockItemData } from "@/components/Dock";
 import { Cursor } from "@/components/Cursor";
 import { AnimatePresence } from "framer-motion";
+import { playSound, SOUNDS } from "@/util/Sounds";
 
 // Constants
 const PIECE_SIZE = 120;
@@ -224,12 +225,18 @@ function RoomContent() {
   );
 
   const deletePiece = useMutation(({ storage }, id: string) => {
+    // Play delete sound
+    playSound(SOUNDS.DELETE);
+
     const pieces = storage.get("pieces");
     const newPieces = pieces.filter((p: PieceData) => p.id !== id);
     storage.set("pieces", newPieces);
   }, []);
 
   const duplicatePiece = useMutation(({ storage }, id: string) => {
+    // Play click sound when duplicating
+    playSound(SOUNDS.CLICK);
+
     const pieces = storage.get("pieces");
     const original = pieces.find((p: PieceData) => p.id === id);
     if (original) {
@@ -318,6 +325,9 @@ function RoomContent() {
 
   const addPiece = useMutation(
     ({ storage }) => {
+      // Play click sound when adding a piece
+      playSound(SOUNDS.CLICK);
+
       const pieces = storage.get("pieces");
       const regularPieces = pieces.filter(
         (p: PieceData) => p.type !== "consolidated"
@@ -348,6 +358,8 @@ function RoomContent() {
               type: "regular",
             };
             storage.set("pieces", [...pieces, newPiece]);
+            // Play click sound again for the new piece after consolidation
+            playSound(SOUNDS.CLICK);
           }, 500);
         }, 100);
         return;

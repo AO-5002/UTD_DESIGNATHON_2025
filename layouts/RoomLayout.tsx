@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
+import Image from "next/image";
 
 type SidebarItemProps = {
   icon: React.ReactNode;
@@ -225,6 +226,23 @@ function RoomLayout({
 }: RoomLayoutProps) {
   return (
     <div className="relative min-h-screen w-full">
+      {/* Logo in top-left corner */}
+      <div className="fixed top-4 left-4 z-50">
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="bg-white rounded-xl border-2 border-[var(--color-border)] shadow-lg p-3 cursor-pointer hover:shadow-xl transition-all"
+        >
+          <Image
+            src="/JigSolve.png"
+            alt="JigSolve Logo"
+            width={40}
+            height={40}
+            className="object-contain"
+          />
+        </motion.div>
+      </div>
+
       {/* Navbar (Dock) - Fixed at the top, overlaying content */}
       <Navbar items={navbarItems} />
 
