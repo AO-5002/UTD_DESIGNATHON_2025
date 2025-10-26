@@ -5,29 +5,35 @@ const client = createClient({
   publicApiKey: process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY || "",
 });
 
-type Piece = {
+type PieceData = {
   id: string;
   color: string;
   text: string;
+  type?: "regular" | "consolidated";
+  gridSpan?: { rows: number; cols: number };
+  sourceIds?: string[];
 };
 
-type Presence = {
-  cursor: { x: number; y: number } | null;
-  editingPieceId: string | null; // Track which piece user is editing
+type SoundEvent = {
+  id: string;
+  soundUrl: string;
+  timestamp: number;
 };
 
 type Storage = {
-  pieces: Piece[];
+  pieces: PieceData[];
+  soundEvents: SoundEvent[];
+};
+
+type Presence = {
+  // Add your presence types here
 };
 
 export const {
   RoomProvider,
   useStorage,
   useMutation,
-  useRoom,
-  useSelf,
   useOthers,
-  useUpdateMyPresence,
+  useSelf,
+  useRoom,
 } = createRoomContext<Presence, Storage>(client);
-
-export type { Piece, Storage, Presence };

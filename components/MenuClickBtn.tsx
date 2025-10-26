@@ -17,6 +17,7 @@ type MenuClickBtnProps = {
   soundBlocks: SoundBlock[];
   className?: string;
   isActive?: boolean;
+  onSoundPlay?: (soundUrl: string) => void; // New prop for synchronized playback
 };
 
 export function MenuClickBtn({
@@ -25,6 +26,7 @@ export function MenuClickBtn({
   soundBlocks,
   className = "",
   isActive = false,
+  onSoundPlay,
 }: MenuClickBtnProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -54,12 +56,18 @@ export function MenuClickBtn({
   }, [isOpen]);
 
   const playSound = (soundUrl: string) => {
-    const audio = new Audio(soundUrl);
-    audio.play().catch((error) => {
-      console.error("Error playing sound:", error);
-      console.log(`Could not load sound file: ${soundUrl}`);
-      console.log("Make sure the sound file exists in your public folder");
-    });
+    // If we have a callback for synchronized playback, use it
+    if (onSoundPlay) {
+      onSoundPlay(soundUrl);
+    } else {
+      // Fallback to local playback only
+      const audio = new Audio(soundUrl);
+      audio.play().catch((error) => {
+        console.error("Error playing sound:", error);
+        console.log(`Could not load sound file: ${soundUrl}`);
+        console.log("Make sure the sound file exists in your public folder");
+      });
+    }
   };
 
   return (

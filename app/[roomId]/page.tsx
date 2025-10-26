@@ -1,7 +1,7 @@
 "use client";
 
 import RoomLayout from "@/layouts/RoomLayout";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import InfiniteCanvas from "./infinite-canvas";
 import { PuzzlePiece } from "@/components/PuzzlePiece";
 import { useParams } from "next/navigation";
@@ -10,15 +10,17 @@ import { Blocks, Dices, Video, UserRound } from "lucide-react";
 import { DockItemData } from "@/components/Dock";
 
 const PIECE_SIZE = 120;
-const GAP = 20; // Space between blocks
+const GAP = 20;
 
 type PieceData = {
   id: string;
   color: string;
   text: string;
+  type?: "regular" | "consolidated";
+  gridSpan?: { rows: number; cols: number }; // For consolidated pieces
+  sourceIds?: string[]; // IDs of original pieces
 };
 
-// Available colors for new pieces
 const COLORS = [
   "#bacded",
   "#f7bbdc",
@@ -34,12 +36,14 @@ const COLORS = [
 
 // Main room content component
 function RoomContent() {
-  // Get pieces from Liveblocks storage
+  const [isConsolidating, setIsConsolidating] = useState(false);
   const pieces = useStorage((root) => root.pieces) || [];
 
-  // Calculate grid size based on number of pieces
   const gridSize = useMemo(() => {
-    const count = pieces.length;
+    const regularPieces = pieces.filter(
+      (p: PieceData) => p.type !== "consolidated"
+    );
+    const count = regularPieces.length;
     if (count === 0) return 3;
 
     let size = 3;
@@ -47,9 +51,8 @@ function RoomContent() {
       size += 2;
     }
     return size;
-  }, [pieces.length]);
+  }, [pieces]);
 
-  // Calculate grid position for each piece
   const getGridPosition = (index: number) => {
     const row = Math.floor(index / gridSize);
     const col = index % gridSize;
@@ -66,7 +69,19 @@ function RoomContent() {
     };
   };
 
-  // Mutations for updating storage
+  // Calculate size for consolidated piece that spans the grid
+  const getConsolidatedDimensions = () => {
+    const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
+    const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
+
+    return {
+      width: totalWidth,
+      height: totalHeight,
+      x: 500 - totalWidth / 2,
+      y: 400 - totalHeight / 2,
+    };
+  };
+
   const updatePieceText = useMutation(
     ({ storage }, id: string, text: string) => {
       const pieces = storage.get("pieces");
@@ -92,12 +107,12 @@ function RoomContent() {
         id: `piece${Date.now()}`,
         color: original.color,
         text: `${original.text} (Copy)`,
+        type: original.type || "regular",
       };
       storage.set("pieces", [...pieces, newPiece]);
     }
   }, []);
 
-  // Add new piece mutation
   const addPiece = useMutation(({ storage }) => {
     const pieces = storage.get("pieces");
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -105,11 +120,63 @@ function RoomContent() {
       id: `piece${Date.now()}`,
       color: randomColor,
       text: "",
+      type: "regular",
     };
     storage.set("pieces", [...pieces, newPiece]);
   }, []);
 
-  // Custom navbar items with add piece functionality
+  // Consolidate all pieces with AI
+  const consolidateIdeas = useMutation(
+    async ({ storage }) => {
+      const pieces = storage.get("pieces");
+      const regularPieces = pieces.filter(
+        (p: PieceData) => p.type !== "consolidated"
+      );
+
+      if (regularPieces.length === 0) {
+        alert("No pieces to consolidate!");
+        return;
+      }
+
+      setIsConsolidating(true);
+
+      try {
+        // Call OpenAI API
+        const response = await fetch("/api/consolidate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pieces: regularPieces }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to consolidate ideas");
+        }
+
+        const { consolidatedText } = await response.json();
+
+        // Create one big consolidated piece
+        const consolidatedPiece: PieceData = {
+          id: `consolidated-${Date.now()}`,
+          color: "#e6ccff", // Purple color for AI block
+          text: consolidatedText,
+          type: "consolidated",
+          gridSpan: { rows: gridSize, cols: gridSize },
+          sourceIds: regularPieces.map((p: PieceData) => p.id),
+        };
+
+        // Replace all pieces with the consolidated one
+        storage.set("pieces", [consolidatedPiece]);
+      } catch (error) {
+        console.error("Error consolidating:", error);
+        alert("Failed to consolidate ideas. Check console for details.");
+      } finally {
+        setIsConsolidating(false);
+      }
+    },
+    [gridSize]
+  );
+
+  // Custom navbar items
   const navbarItems: DockItemData[] = [
     {
       icon: <Blocks size={24} />,
@@ -133,10 +200,31 @@ function RoomContent() {
     },
   ];
 
+  // Separate regular and consolidated pieces
+  const regularPieces = pieces.filter(
+    (p: PieceData) => p.type !== "consolidated"
+  );
+  const consolidatedPieces = pieces.filter(
+    (p: PieceData) => p.type === "consolidated"
+  );
+
   return (
-    <RoomLayout navbarItems={navbarItems}>
+    // @ts-ignore: RoomLayout props type doesn't include onConsolidateIdeas, pass it through for behavior
+    <RoomLayout navbarItems={navbarItems} onConsolidateIdeas={consolidateIdeas}>
       <InfiniteCanvas>
         <div className="relative">
+          {/* Loading overlay */}
+          {isConsolidating && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                <p className="text-lg font-semibold text-gray-800">
+                  AI is consolidating your ideas...
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Grid size indicator */}
           <div
             className="absolute top-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow-md border-2 border-gray-300 z-50"
@@ -148,12 +236,13 @@ function RoomContent() {
                 {gridSize}×{gridSize}
               </span>
               <span className="text-gray-500 ml-2">
-                ({pieces.length} pieces)
+                ({regularPieces.length} pieces)
               </span>
             </p>
           </div>
 
-          {pieces.map((piece: PieceData, index: number) => {
+          {/* Regular pieces in grid */}
+          {regularPieces.map((piece: PieceData, index: number) => {
             const position = getGridPosition(index);
             return (
               <div
@@ -175,6 +264,76 @@ function RoomContent() {
               </div>
             );
           })}
+
+          {/* Consolidated pieces (big blocks) */}
+          {consolidatedPieces.map((piece: PieceData) => {
+            const dims = getConsolidatedDimensions();
+            return (
+              <div
+                key={piece.id}
+                className="absolute transition-all duration-700 ease-out"
+                style={{
+                  left: dims.x,
+                  top: dims.y,
+                  width: dims.width,
+                  height: dims.height,
+                }}
+              >
+                <div
+                  className="w-full h-full rounded-3xl border-4 border-purple-600 shadow-2xl p-8 overflow-y-auto"
+                  style={{
+                    backgroundColor: piece.color,
+                    background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                  }}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-purple-400">
+                    <div className="flex items-center gap-2">
+                      <div className="bg-purple-600 text-white rounded-full p-2">
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-2xl font-bold text-purple-900">
+                        AI Consolidated Ideas
+                      </h2>
+                    </div>
+                    <div className="text-sm text-purple-700 font-medium bg-purple-200 px-3 py-1 rounded-full">
+                      {piece.sourceIds?.length || 0} ideas merged
+                    </div>
+                  </div>
+
+                  {/* AI-generated content */}
+                  <div className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {piece.text}
+                  </div>
+
+                  {/* Footer actions */}
+                  <div className="mt-8 pt-4 border-t-2 border-purple-400 flex gap-2">
+                    <button
+                      onClick={() => updatePieceText(piece.id, piece.text)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deletePiece(piece.id)}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                    >
+                      Delete & Start Over
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </InfiniteCanvas>
     </RoomLayout>
@@ -192,12 +351,38 @@ export default function Page() {
       initialPresence={(roomId: string) => ({} as any)}
       initialStorage={{
         pieces: [
-          { id: "piece1", color: "#bacded", text: "Team Goals" },
-          { id: "piece2", color: "#f7bbdc", text: "Marketing" },
-          { id: "piece3", color: "#ddedab", text: "Development" },
-          { id: "piece4", color: "#ffd7d7", text: "Design Sprint" },
-          { id: "piece5", color: "#f6db70", text: "Research" },
+          {
+            id: "piece1",
+            color: "#bacded",
+            text: "Team Goals",
+            type: "regular",
+          },
+          {
+            id: "piece2",
+            color: "#f7bbdc",
+            text: "Marketing Strategy",
+            type: "regular",
+          },
+          {
+            id: "piece3",
+            color: "#ddedab",
+            text: "Development Roadmap",
+            type: "regular",
+          },
+          {
+            id: "piece4",
+            color: "#ffd7d7",
+            text: "Design Sprint",
+            type: "regular",
+          },
+          {
+            id: "piece5",
+            color: "#f6db70",
+            text: "User Research",
+            type: "regular",
+          },
         ],
+        soundEvents: [],
       }}
     >
       <RoomContent />

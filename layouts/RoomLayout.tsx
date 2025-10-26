@@ -5,8 +5,6 @@ import { DockItemData } from "@/components/Dock";
 import { MenuClickBtn, type SoundBlock } from "@/components/MenuClickBtn";
 import {
   Settings,
-  Bell,
-  Search,
   Music,
   Smile,
   Zap,
@@ -66,7 +64,11 @@ function SidebarItem({ icon, label, onClick, isActive }: SidebarItemProps) {
   );
 }
 
-function Sidebar() {
+type SidebarProps = {
+  onConsolidateIdeas?: () => void;
+};
+
+function Sidebar({ onConsolidateIdeas }: SidebarProps) {
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
   // Sound blocks using your local WAV files (1-7)
@@ -123,14 +125,14 @@ function Sidebar() {
     {
       id: "8",
       label: "Empty",
-      sound: "/sounds/1.wav", // Placeholder - reuses sound 1
+      sound: "/sounds/1.wav",
       color: "#ddedab",
       icon: <PartyPopper size={16} />,
     },
     {
       id: "9",
       label: "Empty",
-      sound: "/sounds/1.wav", // Placeholder - reuses sound 1
+      sound: "/sounds/1.wav",
       color: "#ffd7d7",
       icon: <Music size={16} />,
     },
@@ -141,7 +143,7 @@ function Sidebar() {
       icon: <MousePointer2 size={22} />,
       label: "Select",
       onClick: () => {
-        console.log("Home clicked");
+        console.log("Select clicked");
         setActiveIndex(0);
       },
     },
@@ -149,23 +151,24 @@ function Sidebar() {
       icon: <Lightbulb size={22} />,
       label: "Consolidate Ideas",
       onClick: () => {
-        console.log("Team clicked");
+        console.log("Consolidate Ideas clicked");
         setActiveIndex(1);
+        onConsolidateIdeas?.();
       },
     },
     {
       icon: <Type size={22} />,
-      label: "",
+      label: "Add Text",
       onClick: () => {
-        console.log("Notifications clicked");
+        console.log("Add Text clicked");
         setActiveIndex(2);
       },
     },
     {
       icon: <MessageSquarePlus size={22} />,
-      label: "Search",
+      label: "Comment",
       onClick: () => {
-        console.log("Search clicked");
+        console.log("Comment clicked");
         setActiveIndex(3);
       },
     },
@@ -212,16 +215,21 @@ function Sidebar() {
 
 type RoomLayoutProps = Children & {
   navbarItems?: DockItemData[];
+  onConsolidateIdeas?: () => void;
 };
 
-function RoomLayout({ children, navbarItems }: RoomLayoutProps) {
+function RoomLayout({
+  children,
+  navbarItems,
+  onConsolidateIdeas,
+}: RoomLayoutProps) {
   return (
     <div className="relative min-h-screen w-full">
       {/* Navbar (Dock) - Fixed at the top, overlaying content */}
       <Navbar items={navbarItems} />
 
       {/* Sidebar - Fixed position, vertically centered, overlaying content */}
-      <Sidebar />
+      <Sidebar onConsolidateIdeas={onConsolidateIdeas} />
 
       {/* Main content - Full screen, navbar and sidebar overlay on top */}
       <main className="w-full h-screen">{children}</main>
