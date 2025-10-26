@@ -8,6 +8,7 @@ import {
   Bell,
   Search,
   MousePointer2,
+  Music,
   Type,
   MessageSquarePlus,
 } from "lucide-react";
@@ -97,6 +98,14 @@ function Sidebar() {
       label: "Settings",
       onClick: () => {
         console.log("Settings clicked");
+        setActiveIndex(4);
+      },
+    },
+    {
+      icon: <Music size={22} />,
+      label: "Music Board",
+      onClick: () => {
+        console.log("Music clicked");
         setActiveIndex(4);
       },
     },
