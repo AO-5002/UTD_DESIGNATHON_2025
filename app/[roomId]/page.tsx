@@ -401,7 +401,7 @@ function RoomContent() {
   ];
 
   return (
-    <RoomLayout navbarItems={navbarItems} onConsolidateIdeas={consolidateIdeas}>
+    <RoomLayout navbarItems={navbarItems}>
       <div
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}

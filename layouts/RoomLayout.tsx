@@ -20,8 +20,8 @@ import {
   MessageSquarePlus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import { useStorage, useMutation } from "@/Liveblocks.config";
 
 type SidebarItemProps = {
   icon: React.ReactNode;
@@ -65,12 +65,10 @@ function SidebarItem({ icon, label, onClick, isActive }: SidebarItemProps) {
   );
 }
 
-type SidebarProps = {
-  onConsolidateIdeas?: () => void;
-};
-
-function Sidebar({ onConsolidateIdeas }: SidebarProps) {
+function Sidebar() {
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const soundEvents = useStorage((root) => root.soundEvents);
+  const lastProcessedIndexRef = useRef<number>(-1);
 
   // Sound blocks using your local WAV files (1-7)
   const goofySoundBlocks: SoundBlock[] = [
@@ -139,12 +137,74 @@ function Sidebar({ onConsolidateIdeas }: SidebarProps) {
     },
   ];
 
+  // Mutation to add a sound event
+  const playSoundForEveryone = useMutation(({ storage }, soundUrl: string) => {
+    console.log("🎵 Broadcasting sound:", soundUrl);
+    const events = storage.get("soundEvents");
+    const newEvent = {
+      id: `sound-${Date.now()}-${Math.random()}`,
+      soundUrl,
+      timestamp: Date.now(),
+    };
+
+    // Add to storage - this will trigger all clients
+    const updatedEvents = [...events, newEvent];
+    storage.set("soundEvents", updatedEvents);
+    console.log(
+      "✅ Sound event added to storage. Total events:",
+      updatedEvents.length
+    );
+  }, []);
+
+  // Listen for new sound events and play them
+  useEffect(() => {
+    if (!soundEvents || soundEvents.length === 0) {
+      console.log("📭 No sound events yet");
+      return;
+    }
+
+    console.log("📬 Sound events array length:", soundEvents.length);
+    console.log("📬 Last processed index:", lastProcessedIndexRef.current);
+
+    // Process any new events we haven't seen yet
+    const newEventsStartIndex = lastProcessedIndexRef.current + 1;
+    const newEvents = soundEvents.slice(newEventsStartIndex);
+
+    if (newEvents.length > 0) {
+      console.log(`🔔 Processing ${newEvents.length} new sound event(s)`);
+
+      newEvents.forEach((event, index) => {
+        console.log(
+          `🎵 Playing sound ${newEventsStartIndex + index + 1}/${
+            soundEvents.length
+          }:`,
+          event.soundUrl
+        );
+
+        // Play the sound
+        const audio = new Audio(event.soundUrl);
+        audio
+          .play()
+          .then(() => {
+            console.log("✅ Sound played successfully:", event.soundUrl);
+          })
+          .catch((error) => {
+            console.error("❌ Error playing sound:", error);
+            console.error("Sound URL:", event.soundUrl);
+          });
+      });
+
+      // Update our last processed index
+      lastProcessedIndexRef.current = soundEvents.length - 1;
+    }
+  }, [soundEvents]);
+
   const sidebarItems = [
     {
       icon: <MousePointer2 size={22} />,
       label: "Select",
       onClick: () => {
-        console.log("Select clicked");
+        console.log("Home clicked");
         setActiveIndex(0);
       },
     },
@@ -152,24 +212,23 @@ function Sidebar({ onConsolidateIdeas }: SidebarProps) {
       icon: <Lightbulb size={22} />,
       label: "Consolidate Ideas",
       onClick: () => {
-        console.log("Consolidate Ideas clicked");
+        console.log("Team clicked");
         setActiveIndex(1);
-        onConsolidateIdeas?.();
       },
     },
     {
       icon: <Type size={22} />,
-      label: "Add Text",
+      label: "",
       onClick: () => {
-        console.log("Add Text clicked");
+        console.log("Notifications clicked");
         setActiveIndex(2);
       },
     },
     {
       icon: <MessageSquarePlus size={22} />,
-      label: "Comment",
+      label: "Search",
       onClick: () => {
-        console.log("Comment clicked");
+        console.log("Search clicked");
         setActiveIndex(3);
       },
     },
@@ -192,11 +251,12 @@ function Sidebar({ onConsolidateIdeas }: SidebarProps) {
         {/* Divider */}
         <div className="h-px bg-gray-200 my-1" />
 
-        {/* MenuClickBtn with sound blocks */}
+        {/* MenuClickBtn with sound blocks - now triggers synchronized playback */}
         <MenuClickBtn
           icon={<Music size={22} />}
           label="Goofy Sounds"
           soundBlocks={goofySoundBlocks}
+          onSoundPlay={playSoundForEveryone}
         />
 
         {/* Settings at the bottom */}
@@ -216,38 +276,16 @@ function Sidebar({ onConsolidateIdeas }: SidebarProps) {
 
 type RoomLayoutProps = Children & {
   navbarItems?: DockItemData[];
-  onConsolidateIdeas?: () => void;
 };
 
-function RoomLayout({
-  children,
-  navbarItems,
-  onConsolidateIdeas,
-}: RoomLayoutProps) {
+function RoomLayout({ children, navbarItems }: RoomLayoutProps) {
   return (
     <div className="relative min-h-screen w-full">
-      {/* Logo in top-left corner */}
-      <div className="fixed top-4 left-4 z-50">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="bg-white rounded-xl border-2 border-[var(--color-border)] shadow-lg p-3 cursor-pointer hover:shadow-xl transition-all"
-        >
-          <Image
-            src="/JigSolve.png"
-            alt="JigSolve Logo"
-            width={40}
-            height={40}
-            className="object-contain"
-          />
-        </motion.div>
-      </div>
-
       {/* Navbar (Dock) - Fixed at the top, overlaying content */}
       <Navbar items={navbarItems} />
 
       {/* Sidebar - Fixed position, vertically centered, overlaying content */}
-      <Sidebar onConsolidateIdeas={onConsolidateIdeas} />
+      <Sidebar />
 
       {/* Main content - Full screen, navbar and sidebar overlay on top */}
       <main className="w-full h-screen">{children}</main>
