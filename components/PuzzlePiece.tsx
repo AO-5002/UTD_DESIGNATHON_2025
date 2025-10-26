@@ -86,26 +86,39 @@ export function PuzzlePiece({
               }}
             >
               {isEditing ? (
-                <textarea
-                  ref={textareaRef}
-                  value={pieceText}
-                  onChange={(e) => handleTextChange(e.target.value)}
-                  onBlur={handleTextSave}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleTextSave();
-                    }
-                    if (e.key === "Escape") {
-                      setPieceText(text);
-                      setIsEditing(false);
-                    }
-                  }}
-                  className="w-full h-full bg-transparent text-center text-xs font-medium resize-none outline-none border-none focus:ring-0"
-                  style={{ color: "#2d3748" }}
-                  maxLength={50}
-                  placeholder="Click to add text..."
-                />
+                <div className="w-full h-full flex flex-col items-center justify-center">
+                  <textarea
+                    ref={textareaRef}
+                    value={pieceText}
+                    onChange={(e) => handleTextChange(e.target.value)}
+                    onBlur={handleTextSave}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleTextSave();
+                      }
+                      if (e.key === "Escape") {
+                        setPieceText(text);
+                        setIsEditing(false);
+                      }
+                    }}
+                    className="w-full flex-1 bg-transparent text-center text-xs font-medium resize-none outline-none border-none focus:ring-0"
+                    style={{ color: "#2d3748" }}
+                    maxLength={50}
+                    placeholder="Click to add text..."
+                  />
+                  <div
+                    className={`text-[10px] font-medium mt-1 ${
+                      pieceText.length >= 50
+                        ? "text-red-600"
+                        : pieceText.length >= 40
+                        ? "text-orange-600"
+                        : "text-gray-500"
+                    }`}
+                  >
+                    {pieceText.length}/50
+                  </div>
+                </div>
               ) : (
                 <p className="text-xs font-medium text-gray-800 text-center break-words w-full px-2">
                   {pieceText || "Click to edit"}
