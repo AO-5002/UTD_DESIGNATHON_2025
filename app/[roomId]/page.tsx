@@ -9,17 +9,11 @@ import { RoomProvider, useStorage, useMutation } from "@/Liveblocks.config";
 import { Blocks, Dices, Video, UserRound } from "lucide-react";
 import { DockItemData } from "@/components/Dock";
 
+// Constants
 const PIECE_SIZE = 120;
 const GAP = 20;
-
-type PieceData = {
-  id: string;
-  color: string;
-  text: string;
-  type?: "regular" | "consolidated";
-  gridPositions?: { row: number; col: number }[]; // Positions this piece occupies
-  sourceIds?: string[]; // IDs of original pieces
-};
+const INITIAL_GRID_SIZE = 3;
+const GRID_EXPANSION_INCREMENT = 2;
 
 const COLORS = [
   "#bacded",
@@ -34,93 +28,68 @@ const COLORS = [
   "#ffe0b3",
 ];
 
-// Main room content component
-function RoomContent() {
-  const [isConsolidating, setIsConsolidating] = useState(false);
-  const pieces = useStorage((root) => root.pieces) || [];
+// Types
+type PieceData = {
+  id: string;
+  color: string;
+  text: string;
+  type?: "regular" | "consolidated";
+  gridPositions?: { row: number; col: number }[];
+  sourceIds?: string[];
+  colors?: string[];
+};
 
-  // Helper function to check if a grid position is occupied by a consolidated piece
-  const isPositionOccupiedByConsolidated = (row: number, col: number) => {
-    const consolidatedPieces = pieces.filter(
-      (p: PieceData) => p.type === "consolidated"
-    );
-    return consolidatedPieces.some((p: PieceData) =>
-      p.gridPositions?.some((pos) => pos.row === row && pos.col === col)
-    );
-  };
+// Helper Functions
+const calculateGridSize = (totalNeeded: number): number => {
+  if (totalNeeded === 0) return INITIAL_GRID_SIZE;
 
-  // Get available grid positions for regular pieces (excluding consolidated positions)
-  const getAvailablePositions = useMemo(() => {
-    const consolidatedPieces = pieces.filter(
-      (p: PieceData) => p.type === "consolidated"
-    );
-    const occupiedPositions = new Set<string>();
+  let size = INITIAL_GRID_SIZE;
+  while (size * size < totalNeeded) {
+    size += GRID_EXPANSION_INCREMENT;
+  }
+  return size;
+};
 
-    consolidatedPieces.forEach((p: PieceData) => {
-      p.gridPositions?.forEach((pos) => {
-        occupiedPositions.add(`${pos.row},${pos.col}`);
-      });
+const getOccupiedPositions = (consolidatedPieces: PieceData[]): Set<string> => {
+  const occupied = new Set<string>();
+  consolidatedPieces.forEach((piece) => {
+    piece.gridPositions?.forEach((pos) => {
+      occupied.add(`${pos.row},${pos.col}`);
     });
+  });
+  return occupied;
+};
 
-    return occupiedPositions;
-  }, [pieces]);
+// Custom Hooks
+const usePieceCategories = (pieces: PieceData[]) => {
+  return useMemo(
+    () => ({
+      regular: pieces.filter((p) => p.type !== "consolidated"),
+      consolidated: pieces.filter((p) => p.type === "consolidated"),
+    }),
+    [pieces]
+  );
+};
 
-  // Calculate grid size based on ALL pieces (regular + space needed)
+const useGridCalculations = (pieces: PieceData[]) => {
+  const { regular, consolidated } = usePieceCategories(pieces);
+  const occupiedPositions = useMemo(
+    () => getOccupiedPositions(consolidated),
+    [consolidated]
+  );
+
   const gridSize = useMemo(() => {
-    const regularPieces = pieces.filter(
-      (p: PieceData) => p.type !== "consolidated"
-    );
-    const totalNeeded = regularPieces.length + getAvailablePositions.size;
+    const totalNeeded = regular.length + occupiedPositions.size;
+    return calculateGridSize(totalNeeded);
+  }, [regular.length, occupiedPositions.size]);
 
-    if (totalNeeded === 0) return 3;
-
-    let size = 3;
-    while (size * size < totalNeeded) {
-      size += 2;
-    }
-    return size;
-  }, [pieces, getAvailablePositions]);
-
-  // Get grid position for regular pieces, skipping occupied consolidated positions
-  const getGridPosition = (pieceIndex: number) => {
-    let currentIndex = 0;
-    let gridIndex = 0;
-
-    // Iterate through grid positions until we find the right one for this piece
-    while (currentIndex <= pieceIndex) {
-      const row = Math.floor(gridIndex / gridSize);
-      const col = gridIndex % gridSize;
-
-      // If this position is not occupied by consolidated, it counts
-      if (!isPositionOccupiedByConsolidated(row, col)) {
-        if (currentIndex === pieceIndex) {
-          const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
-          const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
-
-          const startX = 500 - totalWidth / 2;
-          const startY = 400 - totalHeight / 2;
-
-          return {
-            x: startX + col * (PIECE_SIZE + GAP),
-            y: startY + row * (PIECE_SIZE + GAP),
-            row,
-            col,
-          };
-        }
-        currentIndex++;
-      }
-      gridIndex++;
-    }
-
-    // Fallback
-    return { x: 0, y: 0, row: 0, col: 0 };
+  const isPositionOccupied = (row: number, col: number): boolean => {
+    return occupiedPositions.has(`${row},${col}`);
   };
 
-  // Convert grid position to pixel position
   const gridToPixel = (row: number, col: number) => {
     const totalWidth = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
     const totalHeight = gridSize * PIECE_SIZE + (gridSize - 1) * GAP;
-
     const startX = 500 - totalWidth / 2;
     const startY = 400 - totalHeight / 2;
 
@@ -130,6 +99,51 @@ function RoomContent() {
     };
   };
 
+  const getGridPosition = (pieceIndex: number) => {
+    let currentIndex = 0;
+    let gridIndex = 0;
+
+    while (currentIndex <= pieceIndex) {
+      const row = Math.floor(gridIndex / gridSize);
+      const col = gridIndex % gridSize;
+
+      if (!isPositionOccupied(row, col)) {
+        if (currentIndex === pieceIndex) {
+          const position = gridToPixel(row, col);
+          return { ...position, row, col };
+        }
+        currentIndex++;
+      }
+      gridIndex++;
+    }
+
+    return { x: 0, y: 0, row: 0, col: 0 };
+  };
+
+  return {
+    gridSize,
+    occupiedPositions,
+    isPositionOccupied,
+    gridToPixel,
+    getGridPosition,
+    regularPieces: regular,
+    consolidatedPieces: consolidated,
+  };
+};
+
+// Main Room Content Component
+function RoomContent() {
+  const [isConsolidating, setIsConsolidating] = useState(false);
+  const pieces = useStorage((root) => root.pieces) || [];
+  const {
+    gridSize,
+    gridToPixel,
+    getGridPosition,
+    regularPieces,
+    consolidatedPieces,
+  } = useGridCalculations(pieces);
+
+  // Mutations
   const updatePieceText = useMutation(
     ({ storage }, id: string, text: string) => {
       const pieces = storage.get("pieces");
@@ -161,19 +175,6 @@ function RoomContent() {
     }
   }, []);
 
-  const addPiece = useMutation(({ storage }) => {
-    const pieces = storage.get("pieces");
-    const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
-    const newPiece: PieceData = {
-      id: `piece${Date.now()}`,
-      color: randomColor,
-      text: "",
-      type: "regular",
-    };
-    storage.set("pieces", [...pieces, newPiece]);
-  }, []);
-
-  // Consolidate all REGULAR pieces with AI
   const consolidateIdeas = useMutation(
     async ({ storage }) => {
       const pieces = storage.get("pieces");
@@ -189,13 +190,12 @@ function RoomContent() {
       setIsConsolidating(true);
 
       try {
-        // Call OpenAI API with simpler instructions
         const response = await fetch("/api/consolidate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             pieces: regularPieces,
-            simple: true, // Flag for simpler output
+            simple: true,
           }),
         });
 
@@ -206,7 +206,7 @@ function RoomContent() {
 
         const { consolidatedText } = await response.json();
 
-        // Get all grid positions that regular pieces occupy
+        // Get grid positions for regular pieces
         const regularPiecesWithPositions = regularPieces.map(
           (p: PieceData, index: number) => {
             const pos = getGridPosition(index);
@@ -221,17 +221,23 @@ function RoomContent() {
           (p: any) => p.gridPosition
         );
 
-        // Create consolidated piece that occupies those exact positions
+        // Get unique colors from the pieces being consolidated
+        const uniqueColors = [
+          ...new Set(regularPieces.map((p: PieceData) => p.color)),
+        ];
+
+        // Create consolidated piece
         const consolidatedPiece: PieceData = {
           id: `consolidated-${Date.now()}`,
-          color: "#e6ccff", // Purple color for AI block
+          color: uniqueColors.length > 0 ? uniqueColors[0] : "#e6ccff",
           text: consolidatedText,
           type: "consolidated",
-          gridPositions: gridPositions, // Store all positions this piece covers
+          gridPositions: gridPositions,
           sourceIds: regularPieces.map((p: PieceData) => p.id),
+          colors: uniqueColors, // Store all colors for gradient
         };
 
-        // Keep other consolidated pieces, but remove the regular pieces that were merged
+        // Keep other consolidated pieces, remove regular pieces
         const otherConsolidatedPieces = pieces.filter(
           (p: PieceData) => p.type === "consolidated"
         );
@@ -246,7 +252,59 @@ function RoomContent() {
     [getGridPosition]
   );
 
-  // Custom navbar items
+  const addPiece = useMutation(
+    ({ storage }) => {
+      const pieces = storage.get("pieces");
+      const regularPieces = pieces.filter(
+        (p: PieceData) => p.type !== "consolidated"
+      );
+      const consolidatedPieces = pieces.filter(
+        (p: PieceData) => p.type === "consolidated"
+      );
+
+      // Calculate occupied positions
+      const occupiedPositions = getOccupiedPositions(consolidatedPieces);
+
+      const currentTotal = regularPieces.length + occupiedPositions.size;
+      const nextTotal = currentTotal + 1;
+
+      const currentGridSize = calculateGridSize(currentTotal);
+      const nextGridSize = calculateGridSize(nextTotal);
+
+      // If adding this piece would increase grid size AND we have regular pieces, consolidate first
+      if (nextGridSize > currentGridSize && regularPieces.length > 0) {
+        setTimeout(async () => {
+          await consolidateIdeas();
+          setTimeout(() => {
+            const pieces = storage.get("pieces");
+            const randomColor =
+              COLORS[Math.floor(Math.random() * COLORS.length)];
+            const newPiece: PieceData = {
+              id: `piece${Date.now()}`,
+              color: randomColor,
+              text: "",
+              type: "regular",
+            };
+            storage.set("pieces", [...pieces, newPiece]);
+          }, 500);
+        }, 100);
+        return;
+      }
+
+      // Add piece normally
+      const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+      const newPiece: PieceData = {
+        id: `piece${Date.now()}`,
+        color: randomColor,
+        text: "",
+        type: "regular",
+      };
+      storage.set("pieces", [...pieces, newPiece]);
+    },
+    [consolidateIdeas]
+  );
+
+  // Navbar items
   const navbarItems: DockItemData[] = [
     {
       icon: <Blocks size={24} />,
@@ -270,16 +328,7 @@ function RoomContent() {
     },
   ];
 
-  // Separate regular and consolidated pieces
-  const regularPieces = pieces.filter(
-    (p: PieceData) => p.type !== "consolidated"
-  );
-  const consolidatedPieces = pieces.filter(
-    (p: PieceData) => p.type === "consolidated"
-  );
-
   return (
-    // @ts-ignore: RoomLayout props type doesn't include onConsolidateIdeas
     <RoomLayout navbarItems={navbarItems} onConsolidateIdeas={consolidateIdeas}>
       <InfiniteCanvas>
         <div className="relative">
@@ -312,13 +361,12 @@ function RoomContent() {
             </p>
           </div>
 
-          {/* Consolidated pieces - ONE unified block spanning multiple grid cells */}
+          {/* Consolidated pieces */}
           {consolidatedPieces.map((piece: PieceData) => {
             if (!piece.gridPositions || piece.gridPositions.length === 0) {
               return null;
             }
 
-            // Calculate the bounding box for the merged shape
             const minRow = Math.min(...piece.gridPositions.map((p) => p.row));
             const maxRow = Math.max(...piece.gridPositions.map((p) => p.row));
             const minCol = Math.min(...piece.gridPositions.map((p) => p.col));
@@ -326,7 +374,6 @@ function RoomContent() {
 
             const topLeft = gridToPixel(minRow, minCol);
 
-            // Calculate total width and height INCLUDING gaps between cells
             const numCols = maxCol - minCol + 1;
             const numRows = maxRow - minRow + 1;
             const totalWidth = numCols * PIECE_SIZE + (numCols - 1) * GAP;
@@ -343,7 +390,6 @@ function RoomContent() {
                   height: totalHeight,
                 }}
               >
-                {/* ONE single unified block */}
                 <div
                   className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl p-4 overflow-y-auto flex flex-col"
                   style={{
@@ -377,7 +423,6 @@ function RoomContent() {
                   </div>
                 </div>
 
-                {/* Delete button */}
                 <button
                   onClick={() => deletePiece(piece.id)}
                   className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg z-10"
@@ -400,7 +445,7 @@ function RoomContent() {
             );
           })}
 
-          {/* Regular pieces in grid (avoiding consolidated positions) */}
+          {/* Regular pieces */}
           {regularPieces.map((piece: PieceData, index: number) => {
             const position = getGridPosition(index);
             return (
