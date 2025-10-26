@@ -8,7 +8,7 @@ import { useParams } from "next/navigation";
 import { RoomProvider, useStorage, useMutation } from "@/Liveblocks.config";
 
 const PIECE_SIZE = 120;
-const GAP = 20;
+const GAP = 20; // Space between blocks
 
 type PieceData = {
   id: string;
