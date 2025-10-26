@@ -1,8 +1,12 @@
 "use client";
-import Dock from "./Dock";
+import Dock, { DockItemData } from "./Dock";
 import { Blocks, Dices, Video, UserRound } from "lucide-react";
 
-const items = [
+type NavbarProps = {
+  items?: DockItemData[];
+};
+
+const defaultItems: DockItemData[] = [
   {
     icon: <Blocks size={24} />,
     label: "Puzzle",
@@ -25,7 +29,7 @@ const items = [
   },
 ];
 
-function Navbar() {
+function Navbar({ items = defaultItems }: NavbarProps) {
   return (
     <Dock items={items} panelHeight={68} baseItemSize={50} magnification={78} />
   );

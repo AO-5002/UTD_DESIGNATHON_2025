@@ -1,6 +1,7 @@
 "use client";
 import { Children } from "@/util/types/Children";
 import Navbar from "@/components/Navbar";
+import { DockItemData } from "@/components/Dock";
 import { MenuClickBtn, type SoundBlock } from "@/components/MenuClickBtn";
 import {
   Settings,
@@ -209,11 +210,15 @@ function Sidebar() {
   );
 }
 
-function RoomLayout({ children }: Children) {
+type RoomLayoutProps = Children & {
+  navbarItems?: DockItemData[];
+};
+
+function RoomLayout({ children, navbarItems }: RoomLayoutProps) {
   return (
     <div className="relative min-h-screen w-full">
       {/* Navbar (Dock) - Fixed at the top, overlaying content */}
-      <Navbar />
+      <Navbar items={navbarItems} />
 
       {/* Sidebar - Fixed position, vertically centered, overlaying content */}
       <Sidebar />

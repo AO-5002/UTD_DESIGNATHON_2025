@@ -6,6 +6,8 @@ import InfiniteCanvas from "./infinite-canvas";
 import { PuzzlePiece } from "@/components/PuzzlePiece";
 import { useParams } from "next/navigation";
 import { RoomProvider, useStorage, useMutation } from "@/Liveblocks.config";
+import { Blocks, Dices, Video, UserRound } from "lucide-react";
+import { DockItemData } from "@/components/Dock";
 
 const PIECE_SIZE = 120;
 const GAP = 20; // Space between blocks
@@ -15,6 +17,20 @@ type PieceData = {
   color: string;
   text: string;
 };
+
+// Available colors for new pieces
+const COLORS = [
+  "#bacded",
+  "#f7bbdc",
+  "#ddedab",
+  "#ffd7d7",
+  "#f6db70",
+  "#ffcaca",
+  "#b8e6d5",
+  "#ffd9b3",
+  "#e6ccff",
+  "#ffe0b3",
+];
 
 // Main room content component
 function RoomContent() {
@@ -81,8 +97,44 @@ function RoomContent() {
     }
   }, []);
 
+  // Add new piece mutation
+  const addPiece = useMutation(({ storage }) => {
+    const pieces = storage.get("pieces");
+    const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const newPiece: PieceData = {
+      id: `piece${Date.now()}`,
+      color: randomColor,
+      text: "",
+    };
+    storage.set("pieces", [...pieces, newPiece]);
+  }, []);
+
+  // Custom navbar items with add piece functionality
+  const navbarItems: DockItemData[] = [
+    {
+      icon: <Blocks size={24} />,
+      label: "Add Puzzle Piece",
+      onClick: () => addPiece(),
+    },
+    {
+      icon: <Dices size={24} />,
+      label: "Games",
+      onClick: () => alert("Games!"),
+    },
+    {
+      icon: <Video size={24} />,
+      label: "Call",
+      onClick: () => alert("Call!"),
+    },
+    {
+      icon: <UserRound size={24} />,
+      label: "Profile",
+      onClick: () => alert("Profile!"),
+    },
+  ];
+
   return (
-    <RoomLayout>
+    <RoomLayout navbarItems={navbarItems}>
       <InfiniteCanvas>
         <div className="relative">
           {/* Grid size indicator */}
