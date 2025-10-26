@@ -17,6 +17,8 @@ import { DockItemData } from "@/components/Dock";
 import { Cursor } from "@/components/Cursor";
 import { AnimatePresence } from "framer-motion";
 import { playSound, SOUNDS } from "@/util/Sounds";
+import { GameModal } from "@/components/GameModal";
+import { GamesMenu } from "@/components/GameMenu";
 
 // Constants
 const PIECE_SIZE = 120;
@@ -183,6 +185,8 @@ const generateRandomName = () => {
 // Main Room Content Component
 function RoomContent() {
   const [isConsolidating, setIsConsolidating] = useState(false);
+  const [isGamesModalOpen, setIsGamesModalOpen] = useState(false);
+
   const pieces = useStorage((root) => root.pieces) || [];
   const {
     gridSize,
@@ -386,7 +390,7 @@ function RoomContent() {
     {
       icon: <Dices size={24} />,
       label: "Games",
-      onClick: () => alert("Games!"),
+      onClick: () => setIsGamesModalOpen(true),
     },
     {
       icon: <Video size={24} />,
@@ -560,6 +564,19 @@ function RoomContent() {
             );
           })}
         </AnimatePresence>
+
+        {/* Games Modal */}
+        <GameModal
+          isOpen={isGamesModalOpen}
+          onClose={() => setIsGamesModalOpen(false)}
+        >
+          <GamesMenu
+            onGameSelect={(gameId) => {
+              console.log("Selected game:", gameId);
+              // Handle game selection here
+            }}
+          />
+        </GameModal>
       </div>
     </RoomLayout>
   );
