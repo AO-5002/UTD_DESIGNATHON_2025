@@ -1,13 +1,21 @@
 "use client";
 
 import RoomLayout from "@/layouts/RoomLayout";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import InfiniteCanvas from "./infinite-canvas";
 import { PuzzlePiece } from "@/components/PuzzlePiece";
 import { useParams } from "next/navigation";
-import { RoomProvider, useStorage, useMutation } from "@/Liveblocks.config";
+import {
+  RoomProvider,
+  useStorage,
+  useMutation,
+  useOthers,
+  useUpdateMyPresence,
+} from "@/Liveblocks.config";
 import { Blocks, Dices, Video, UserRound } from "lucide-react";
 import { DockItemData } from "@/components/Dock";
+import { Cursor } from "@/components/Cursor";
+import { AnimatePresence } from "framer-motion";
 
 // Constants
 const PIECE_SIZE = 120;
@@ -26,6 +34,19 @@ const COLORS = [
   "#ffd9b3",
   "#e6ccff",
   "#ffe0b3",
+];
+
+const CURSOR_COLORS = [
+  "#FF6B6B",
+  "#4ECDC4",
+  "#45B7D1",
+  "#FFA07A",
+  "#98D8C8",
+  "#F7DC6F",
+  "#BB8FCE",
+  "#85C1E2",
+  "#F8B739",
+  "#52B788",
 ];
 
 // Types
@@ -131,6 +152,33 @@ const useGridCalculations = (pieces: PieceData[]) => {
   };
 };
 
+// Generate random name
+const generateRandomName = () => {
+  const adjectives = [
+    "Happy",
+    "Clever",
+    "Swift",
+    "Bright",
+    "Cool",
+    "Wise",
+    "Bold",
+    "Calm",
+  ];
+  const nouns = [
+    "Panda",
+    "Fox",
+    "Tiger",
+    "Eagle",
+    "Lion",
+    "Bear",
+    "Wolf",
+    "Owl",
+  ];
+  return `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${
+    nouns[Math.floor(Math.random() * nouns.length)]
+  }`;
+};
+
 // Main Room Content Component
 function RoomContent() {
   const [isConsolidating, setIsConsolidating] = useState(false);
@@ -142,6 +190,26 @@ function RoomContent() {
     regularPieces,
     consolidatedPieces,
   } = useGridCalculations(pieces);
+
+  // Cursor tracking
+  const others = useOthers();
+  const updateMyPresence = useUpdateMyPresence();
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      updateMyPresence({
+        cursor: {
+          x: e.clientX,
+          y: e.clientY,
+        },
+      });
+    },
+    [updateMyPresence]
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    updateMyPresence({ cursor: null });
+  }, [updateMyPresence]);
 
   // Mutations
   const updatePieceText = useMutation(
@@ -206,7 +274,6 @@ function RoomContent() {
 
         const { consolidatedText } = await response.json();
 
-        // Get grid positions for regular pieces
         const regularPiecesWithPositions = regularPieces.map(
           (p: PieceData, index: number) => {
             const pos = getGridPosition(index);
@@ -221,12 +288,10 @@ function RoomContent() {
           (p: any) => p.gridPosition
         );
 
-        // Get unique colors from the pieces being consolidated
         const uniqueColors = [
           ...new Set(regularPieces.map((p: PieceData) => p.color)),
         ];
 
-        // Create consolidated piece
         const consolidatedPiece: PieceData = {
           id: `consolidated-${Date.now()}`,
           color: uniqueColors.length > 0 ? uniqueColors[0] : "#e6ccff",
@@ -234,10 +299,9 @@ function RoomContent() {
           type: "consolidated",
           gridPositions: gridPositions,
           sourceIds: regularPieces.map((p: PieceData) => p.id),
-          colors: uniqueColors, // Store all colors for gradient
+          colors: uniqueColors,
         };
 
-        // Keep other consolidated pieces, remove regular pieces
         const otherConsolidatedPieces = pieces.filter(
           (p: PieceData) => p.type === "consolidated"
         );
@@ -262,7 +326,6 @@ function RoomContent() {
         (p: PieceData) => p.type === "consolidated"
       );
 
-      // Calculate occupied positions
       const occupiedPositions = getOccupiedPositions(consolidatedPieces);
 
       const currentTotal = regularPieces.length + occupiedPositions.size;
@@ -271,7 +334,6 @@ function RoomContent() {
       const currentGridSize = calculateGridSize(currentTotal);
       const nextGridSize = calculateGridSize(nextTotal);
 
-      // If adding this piece would increase grid size AND we have regular pieces, consolidate first
       if (nextGridSize > currentGridSize && regularPieces.length > 0) {
         setTimeout(async () => {
           await consolidateIdeas();
@@ -291,7 +353,6 @@ function RoomContent() {
         return;
       }
 
-      // Add piece normally
       const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
       const newPiece: PieceData = {
         id: `piece${Date.now()}`,
@@ -304,7 +365,6 @@ function RoomContent() {
     [consolidateIdeas]
   );
 
-  // Navbar items
   const navbarItems: DockItemData[] = [
     {
       icon: <Blocks size={24} />,
@@ -330,146 +390,165 @@ function RoomContent() {
 
   return (
     <RoomLayout navbarItems={navbarItems} onConsolidateIdeas={consolidateIdeas}>
-      <InfiniteCanvas>
-        <div className="relative">
-          {/* Loading overlay */}
-          {isConsolidating && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-              <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-                <p className="text-lg font-semibold text-gray-800">
-                  AI is consolidating your ideas...
-                </p>
+      <div
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        className="w-full h-full"
+      >
+        <InfiniteCanvas>
+          <div className="relative">
+            {isConsolidating && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+                <div className="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                  <p className="text-lg font-semibold text-gray-800">
+                    AI is consolidating your ideas...
+                  </p>
+                </div>
               </div>
+            )}
+
+            <div
+              className="absolute top-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow-md border-2 border-gray-300 z-50"
+              style={{ position: "fixed" }}
+            >
+              <p className="text-sm font-medium text-gray-700">
+                Grid:{" "}
+                <span className="font-bold text-black">
+                  {gridSize}×{gridSize}
+                </span>
+                <span className="text-gray-500 ml-2">
+                  ({regularPieces.length} pieces, {consolidatedPieces.length}{" "}
+                  consolidated)
+                </span>
+              </p>
             </div>
-          )}
 
-          {/* Grid size indicator */}
-          <div
-            className="absolute top-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow-md border-2 border-gray-300 z-50"
-            style={{ position: "fixed" }}
-          >
-            <p className="text-sm font-medium text-gray-700">
-              Grid:{" "}
-              <span className="font-bold text-black">
-                {gridSize}×{gridSize}
-              </span>
-              <span className="text-gray-500 ml-2">
-                ({regularPieces.length} pieces, {consolidatedPieces.length}{" "}
-                consolidated)
-              </span>
-            </p>
-          </div>
+            {consolidatedPieces.map((piece: PieceData) => {
+              if (!piece.gridPositions || piece.gridPositions.length === 0) {
+                return null;
+              }
 
-          {/* Consolidated pieces */}
-          {consolidatedPieces.map((piece: PieceData) => {
-            if (!piece.gridPositions || piece.gridPositions.length === 0) {
-              return null;
-            }
+              const minRow = Math.min(...piece.gridPositions.map((p) => p.row));
+              const maxRow = Math.max(...piece.gridPositions.map((p) => p.row));
+              const minCol = Math.min(...piece.gridPositions.map((p) => p.col));
+              const maxCol = Math.max(...piece.gridPositions.map((p) => p.col));
 
-            const minRow = Math.min(...piece.gridPositions.map((p) => p.row));
-            const maxRow = Math.max(...piece.gridPositions.map((p) => p.row));
-            const minCol = Math.min(...piece.gridPositions.map((p) => p.col));
-            const maxCol = Math.max(...piece.gridPositions.map((p) => p.col));
+              const topLeft = gridToPixel(minRow, minCol);
 
-            const topLeft = gridToPixel(minRow, minCol);
+              const numCols = maxCol - minCol + 1;
+              const numRows = maxRow - minRow + 1;
+              const totalWidth = numCols * PIECE_SIZE + (numCols - 1) * GAP;
+              const totalHeight = numRows * PIECE_SIZE + (numRows - 1) * GAP;
 
-            const numCols = maxCol - minCol + 1;
-            const numRows = maxRow - minRow + 1;
-            const totalWidth = numCols * PIECE_SIZE + (numCols - 1) * GAP;
-            const totalHeight = numRows * PIECE_SIZE + (numRows - 1) * GAP;
-
-            return (
-              <div
-                key={piece.id}
-                className="absolute transition-all duration-700 ease-out group"
-                style={{
-                  left: topLeft.x,
-                  top: topLeft.y,
-                  width: totalWidth,
-                  height: totalHeight,
-                }}
-              >
+              return (
                 <div
-                  className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl p-4 overflow-y-auto flex flex-col"
+                  key={piece.id}
+                  className="absolute transition-all duration-700 ease-out group"
                   style={{
-                    backgroundColor: piece.color,
-                    background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                    left: topLeft.x,
+                    top: topLeft.y,
+                    width: totalWidth,
+                    height: totalHeight,
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="bg-purple-600 text-white rounded-full p-1.5">
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-sm font-bold text-purple-900">
-                      AI Summary
-                    </h3>
-                  </div>
-                  <div className="text-xs text-gray-800 leading-relaxed flex-1">
-                    {piece.text}
-                  </div>
-                  <div className="text-xs text-purple-700 font-medium mt-3 pt-3 border-t border-purple-400">
-                    {piece.sourceIds?.length || 0} ideas merged ({numRows}×
-                    {numCols} grid)
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => deletePiece(piece.id)}
-                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg z-10"
-                  title="Delete merged block"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
+                  <div
+                    className="w-full h-full rounded-2xl border-4 border-purple-600 shadow-2xl p-4 overflow-y-auto flex flex-col"
+                    style={{
+                      backgroundColor: piece.color,
+                      background: `linear-gradient(135deg, ${piece.color} 0%, ${piece.color}dd 100%)`,
+                    }}
                   >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            );
-          })}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="bg-purple-600 text-white rounded-full p-1.5">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-bold text-purple-900">
+                        AI Summary
+                      </h3>
+                    </div>
+                    <div className="text-xs text-gray-800 leading-relaxed flex-1">
+                      {piece.text}
+                    </div>
+                    <div className="text-xs text-purple-700 font-medium mt-3 pt-3 border-t border-purple-400">
+                      {piece.sourceIds?.length || 0} ideas merged ({numRows}×
+                      {numCols} grid)
+                    </div>
+                  </div>
 
-          {/* Regular pieces */}
-          {regularPieces.map((piece: PieceData, index: number) => {
-            const position = getGridPosition(index);
+                  <button
+                    onClick={() => deletePiece(piece.id)}
+                    className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg z-10"
+                    title="Delete merged block"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+
+            {regularPieces.map((piece: PieceData, index: number) => {
+              const position = getGridPosition(index);
+              return (
+                <div
+                  key={piece.id}
+                  className="absolute transition-all duration-500 ease-out"
+                  style={{
+                    left: position.x,
+                    top: position.y,
+                  }}
+                >
+                  <PuzzlePiece
+                    id={piece.id}
+                    color={piece.color}
+                    text={piece.text}
+                    onTextChange={updatePieceText}
+                    onDelete={deletePiece}
+                    onDuplicate={duplicatePiece}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </InfiniteCanvas>
+
+        {/* Other users' cursors */}
+        <AnimatePresence>
+          {others.map(({ connectionId, presence }) => {
+            if (!presence.cursor) return null;
+
             return (
-              <div
-                key={piece.id}
-                className="absolute transition-all duration-500 ease-out"
-                style={{
-                  left: position.x,
-                  top: position.y,
-                }}
-              >
-                <PuzzlePiece
-                  id={piece.id}
-                  color={piece.color}
-                  text={piece.text}
-                  onTextChange={updatePieceText}
-                  onDelete={deletePiece}
-                  onDuplicate={duplicatePiece}
-                />
-              </div>
+              <Cursor
+                key={connectionId}
+                x={presence.cursor.x}
+                y={presence.cursor.y}
+                name={presence.name}
+                color={presence.color}
+              />
             );
           })}
-        </div>
-      </InfiniteCanvas>
+        </AnimatePresence>
+      </div>
     </RoomLayout>
   );
 }
@@ -479,10 +558,21 @@ export default function Page() {
   const params = useParams();
   const roomId = params.roomId as string;
 
+  // Generate random user name and color
+  const userName = useMemo(() => generateRandomName(), []);
+  const userColor = useMemo(
+    () => CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)],
+    []
+  );
+
   return (
     <RoomProvider
       id={roomId}
-      initialPresence={(roomId: string) => ({} as any)}
+      initialPresence={{
+        cursor: null,
+        name: userName,
+        color: userColor,
+      }}
       initialStorage={{
         pieces: [
           {

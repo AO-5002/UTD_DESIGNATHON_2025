@@ -10,8 +10,9 @@ type PieceData = {
   color: string;
   text: string;
   type?: "regular" | "consolidated";
-  gridPositions?: { row: number; col: number }[]; // For consolidated pieces - positions they occupy
-  sourceIds?: string[]; // IDs of pieces that were merged
+  gridPositions?: { row: number; col: number }[];
+  sourceIds?: string[];
+  colors?: string[];
 };
 
 type SoundEvent = {
@@ -26,7 +27,9 @@ type Storage = {
 };
 
 type Presence = {
-  // Add your presence types here
+  cursor: { x: number; y: number } | null;
+  name: string;
+  color: string;
 };
 
 export const {
@@ -36,4 +39,5 @@ export const {
   useOthers,
   useSelf,
   useRoom,
+  useUpdateMyPresence,
 } = createRoomContext<Presence, Storage>(client);

@@ -66,7 +66,7 @@ export function PuzzlePiece({
             backgroundColor: color,
           }}
           className={`relative select-none rounded-2xl border-2 shadow-lg transition-all hover:brightness-105 hover:shadow-xl ${
-            isBeingEditedBy ? "border-blue-500 border-4" : "border-gray-800"
+            isBeingEditedBy ? "border-blue-500 border-4" : ""
           }`}
         >
           {/* Editing indicator */}
