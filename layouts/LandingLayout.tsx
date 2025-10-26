@@ -5,9 +5,9 @@ import { PageLayout } from "./PageLayout";
 
 function Nav() {
   return (
-    <div className="w-full h-12 flex flex-row items-center justify-between border">
-      <Puzzle />
-      <Button className="py-2 px-8 bg-(--color-primary-900) text-white">
+    <div className="w-full h-12 flex flex-row items-center justify-between px-4">
+      <Puzzle className="w-5 h-5" />
+      <Button className="py-5 px-10 text-[1rem] bg-[var(--color-primary-900)] text-white rounded-md">
         Sign Up
       </Button>
     </div>

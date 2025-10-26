@@ -19,13 +19,14 @@
   --color-secondary-400: #f6db70;
 
   /* 📐 Typography Sizes */
-  --font-size-h1: 144px;
-  --font-size-h2: 96px;
-  --font-size-h3: 72px;
-  --font-size-body-lg: 54px;
-  --font-size-body-md: 38px;
-  --font-size-small: 28px;
-  --font-size-button: 64px;
+  /* 📐 Typography Sizes (Scaled Down) */
+  --font-size-h1: 48px; /* from 96px */
+  --font-size-h2: 36px; /* from 96px */
+  --font-size-h3: 28px; /* from 72px */
+  --font-size-body-lg: 20px; /* from 54px */
+  --font-size-body-md: 16px; /* from 38px */
+  --font-size-small: 14px; /* from 28px */
+  --font-size-button: 16px; /* from 48px */
 
   --radius: 0.625rem;
   --background: oklch(1 0 0);

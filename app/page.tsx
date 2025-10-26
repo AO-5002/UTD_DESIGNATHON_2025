@@ -1,94 +1,247 @@
+"use client";
 import LandingLayout from "@/layouts/LandingLayout";
-import Image from "next/image";
 
-export default function Home() {
+// Button Component
+type ButtonProps = {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary";
+  onClick?: () => void;
+  className?: string;
+};
+
+function Button({
+  children,
+  variant = "primary",
+  onClick,
+  className = "",
+}: ButtonProps) {
+  const isPrimary = variant === "primary";
+
   return (
-    <div className="bg-[#fbf5e7] w-full min-w-[2860px] min-h-[2306px] relative">
-      <div className="absolute top-[173px] left-[120px] w-[1017px] h-[382px]">
-        <div className="top-[227px] w-[860px] h-[152px] bg-[#ffd7d7] absolute left-0" />
+    <button
+      onClick={onClick}
+      className={`relative w-[360px] h-[100px] group ${className}`}
+    >
+      <div
+        className={`absolute inset-0 rounded-[50px] transition-transform group-hover:scale-105 ${
+          isPrimary
+            ? "bg-black"
+            : "border-2 border-black group-hover:bg-black/5"
+        }`}
+      />
+      <span
+        className={`absolute inset-0 flex items-center justify-center font-medium text-[var(--font-size-body-md)] ${
+          isPrimary ? "text-white" : "text-black"
+        }`}
+      >
+        {children}
+      </span>
+    </button>
+  );
+}
 
-        <div className="absolute top-0 left-[7px] w-[1008px] [font-family:'Degular-Bold',Helvetica] font-bold text-black text-[144px] tracking-[0] leading-[normal]">
-          Stop scattering.
-          <br />
-          Start solving.
-        </div>
-      </div>
+// Decorative Shape Component
+type DecorativeShapeProps = {
+  color: string;
+  className?: string;
+  rounded?: boolean;
+};
 
-      <div className="absolute top-[1240px] left-[127px] w-[653px] [font-family:'Degular-Black',Helvetica] font-black text-black text-[100px] tracking-[0] leading-[normal]">
-        Stop scrolling. Start stitching.
-      </div>
+function DecorativeShape({
+  color,
+  className = "",
+  rounded = false,
+}: DecorativeShapeProps) {
+  return (
+    <div
+      className={`${className} ${rounded ? "rounded-full" : ""}`}
+      style={{ backgroundColor: color }}
+    />
+  );
+}
 
-      <p className="absolute top-[627px] left-[127px] w-[1953px] [font-family:'Inter-Medium',Helvetica] font-medium text-black text-[50px] tracking-[0] leading-[normal]">
-        Introducing PatchWork—the living digital wall that transforms hybrid
-        teams into a connected community. We replace scattered emails and
-        stressful check-ins with expressive, AI-curated patches that build a
-        collective tapestry of wellbeing and ideas. PatchWork is the feeling of
-        belonging, digitized for the modern workplace.
+// Hero Section Component
+type HeroSectionProps = {
+  title: string;
+  subtitle?: string;
+  description: string;
+  primaryButtonText?: string;
+  secondaryButtonText?: string;
+  onPrimaryClick?: () => void;
+  onSecondaryClick?: () => void;
+};
+
+function HeroSection({
+  title,
+  subtitle,
+  description,
+  primaryButtonText = "Get Started",
+  secondaryButtonText = "Learn More",
+  onPrimaryClick,
+  onSecondaryClick,
+}: HeroSectionProps) {
+  return (
+    <section className="relative">
+      {/* Decorative Elements */}
+      <DecorativeShape
+        color="#ffd7d7"
+        className="absolute top-32 left-0 w-[640px] h-[120px] -z-10"
+      />
+      <DecorativeShape
+        color="#ffce5d"
+        className="absolute top-16 right-32 w-[160px] h-[160px] -z-10"
+        rounded
+      />
+
+      {/* Hero Heading */}
+      <h1 className="font-black leading-tight mb-12 max-w-4xl">
+        {title}
+        {subtitle && (
+          <>
+            <br />
+            {subtitle}
+          </>
+        )}
+      </h1>
+
+      {/* Hero Description */}
+      <p className="text-[var(--font-size-body-md)] font-medium max-w-6xl mb-16 leading-relaxed">
+        {description}
       </p>
 
-      <div className="absolute top-[55px] left-[136px] [font-family:'Inter-Medium',Helvetica] font-medium text-black text-[50px] tracking-[0] leading-[normal]">
-        jigsolve
+      {/* CTA Buttons */}
+      <div className="flex gap-8">
+        <Button variant="primary" onClick={onPrimaryClick}>
+          {primaryButtonText}
+        </Button>
+        <Button variant="secondary" onClick={onSecondaryClick}>
+          {secondaryButtonText}
+        </Button>
       </div>
+    </section>
+  );
+}
 
-      <div className="absolute top-[1016px] left-[120px] w-[422px] h-[118px]">
-        <div className="top-0 w-[420px] h-[118px] bg-black rounded-[59px] absolute left-0" />
+// Feature Card Component
+type FeatureCardProps = {
+  title: string;
+  description?: string;
+  backgroundColor: string;
+  shadowColor: string;
+  className?: string;
+};
 
-        <div className="w-[186px] text-white absolute top-[41px] left-[117px] [font-family:'Inter-Medium',Helvetica] font-medium text-3xl tracking-[0] leading-[normal]">
-          Get Started
+function FeatureCard({
+  title,
+  description,
+  backgroundColor,
+  shadowColor,
+  className = "",
+}: FeatureCardProps) {
+  return (
+    <div className={`relative h-[400px] ${className}`}>
+      {/* Shadow Layer */}
+      <div
+        className="absolute inset-0 rounded-[50px] translate-x-3 translate-y-3"
+        style={{ backgroundColor: shadowColor }}
+      />
+      {/* Main Card */}
+      <div
+        className="relative h-full rounded-[50px] border-2 border-black p-8 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-lg"
+        style={{ backgroundColor }}
+      >
+        <div className="">
+          <h3 className="text-[var(--font-size-body-md)] font-bold mb-4">
+            {title}
+          </h3>
+          {description && (
+            <p className="text-[var(--font-size-small)] font-medium opacity-80">
+              {description}
+            </p>
+          )}
         </div>
       </div>
-
-      <div className="absolute top-[1016px] left-[560px] w-[421px] h-[118px]">
-        <div className="absolute top-0 left-0 w-[419px] h-[118px] rounded-[59px] border border-solid border-black" />
-
-        <div className="w-[185px] text-black absolute top-[41px] left-[117px] [font-family:'Inter-Medium',Helvetica] font-medium text-3xl tracking-[0] leading-[normal]">
-          Get Started
-        </div>
-      </div>
-
-      <div className="absolute top-[1684px] left-[151px] w-[803px] h-[471px]">
-        <div className="absolute top-16 left-0 w-[749px] h-[407px] bg-[#5077b8] rounded-[50px]" />
-
-        <div className="absolute top-0 left-[54px] w-[751px] h-[407px]">
-          <div className="absolute top-0 left-px w-[749px] h-[407px] bg-[#bacded] rounded-[50px] border border-solid border-black" />
-
-          <div className="absolute top-[159px] left-[81px] w-[258px] [font-family:'Degular-Semibold',Helvetica] font-normal text-black text-[40px] tracking-[0] leading-[normal]">
-            Get Started
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute w-[386px] h-[120px] top-14 left-[2354px] flex">
-        <div className="w-[388px] h-[120px] relative">
-          <div className="absolute top-0 left-0 w-[386px] h-[120px] bg-black rounded-[59px]" />
-
-          <div className="absolute top-[42px] left-[136px] w-[115px] [font-family:'Inter-Medium',Helvetica] font-medium text-white text-3xl text-center tracking-[0] leading-[normal]">
-            Sign Up
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute top-[1748px] left-[1024px] w-[749px] h-[407px] bg-[#8fb225] rounded-[50px]" />
-
-      <div className="absolute top-[1684px] left-[1078px] w-[751px] h-[407px]">
-        <div className="absolute top-0 left-px w-[749px] h-[407px] bg-[#ddedab] rounded-[50px] border border-solid border-black" />
-
-        <div className="absolute top-[159px] left-[81px] w-[258px] [font-family:'Degular-Semibold',Helvetica] font-normal text-black text-[40px] tracking-[0] leading-[normal]">
-          Get Started
-        </div>
-      </div>
-
-      <div className="absolute top-[1748px] left-[1896px] w-[749px] h-[407px] bg-[#ff8b8b] rounded-[50px]" />
-
-      <div className="absolute top-[1684px] left-[1950px] w-[751px] h-[407px]">
-        <div className="absolute top-0 left-0 w-[749px] h-[407px] bg-[#ffd7d7] rounded-[50px] border border-solid border-black" />
-
-        <div className="absolute top-[159px] left-[81px] w-[258px] [font-family:'Degular-Semibold',Helvetica] font-normal text-black text-[40px] tracking-[0] leading-[normal]">
-          Get Started
-        </div>
-      </div>
-
-      <div className="absolute top-[304px] left-[1220px] w-[200px] h-[200px] bg-[#ffce5d] rounded-[100px]" />
     </div>
+  );
+}
+
+// Features Section Component
+type FeaturesSectionProps = {
+  title: string;
+  subtitle?: string;
+  features: Array<{
+    title: string;
+    description?: string;
+    backgroundColor: string;
+    shadowColor: string;
+  }>;
+};
+
+function FeaturesSection({ title, subtitle, features }: FeaturesSectionProps) {
+  return (
+    <section className="relative">
+      <div className="flex flex-col gap-4 mb-24">
+        <h2 className="font-black leading-tight max-w-3xl">{title}</h2>
+        <h2>{subtitle}</h2>
+      </div>
+
+      <div className="grid grid-cols-3 gap-12">
+        {features.map((feature, index) => (
+          <FeatureCard
+            key={index}
+            title={feature.title}
+            description={feature.description}
+            backgroundColor={feature.backgroundColor}
+            shadowColor={feature.shadowColor}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// Main Page Component
+export default function Home() {
+  const features = [
+    {
+      title: "Collaborate",
+      description: "Work together seamlessly with your team in real-time",
+      backgroundColor: "#bacded",
+      shadowColor: "#5077b8",
+    },
+    {
+      title: "Connect",
+      description: "Build meaningful relationships across your organization",
+      backgroundColor: "#ddedab",
+      shadowColor: "#8fb225",
+    },
+    {
+      title: "Create",
+      description: "Express yourself with AI-curated digital patches",
+      backgroundColor: "#ffd7d7",
+      shadowColor: "#ff8b8b",
+    },
+  ];
+
+  return (
+    <LandingLayout>
+      <div className="relative w-full py-16 space-y-32">
+        <HeroSection
+          title="Stop scattering."
+          subtitle="Start solving."
+          description="Introducing PatchWork—the living digital wall that transforms hybrid teams into a connected community. We replace scattered emails and stressful check-ins with expressive, AI-curated patches that build a collective tapestry of wellbeing and ideas. PatchWork is the feeling of belonging, digitized for the modern workplace."
+          primaryButtonText="Get Started"
+          secondaryButtonText="Learn More"
+          onPrimaryClick={() => console.log("Primary clicked")}
+          onSecondaryClick={() => console.log("Secondary clicked")}
+        />
+
+        <FeaturesSection
+          title={`Stop scrolling. `}
+          subtitle="Start stitching."
+          features={features}
+        />
+      </div>
+    </LandingLayout>
   );
 }
