@@ -1,16 +1,22 @@
 "use client";
 import { Children } from "@/util/types/Children";
 import Navbar from "@/components/Navbar";
+import { MenuClickBtn, type SoundBlock } from "@/components/MenuClickBtn";
 import {
   Home,
   Users,
   Settings,
   Bell,
   Search,
-  MousePointer2,
   Music,
-  Type,
-  MessageSquarePlus,
+  Smile,
+  Zap,
+  Star,
+  Heart,
+  Sparkles,
+  Laugh,
+  PartyPopper,
+  Volume2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
@@ -60,6 +66,73 @@ function SidebarItem({ icon, label, onClick, isActive }: SidebarItemProps) {
 function Sidebar() {
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
+  // Sound blocks using your local WAV files (1-7)
+  const goofySoundBlocks: SoundBlock[] = [
+    {
+      id: "1",
+      label: "Sound 1",
+      sound: "/sounds/1.wav",
+      color: "#bacded",
+      icon: <Smile size={16} />,
+    },
+    {
+      id: "2",
+      label: "Sound 2",
+      sound: "/sounds/2.wav",
+      color: "#f7bbdc",
+      icon: <Star size={16} />,
+    },
+    {
+      id: "3",
+      label: "Sound 3",
+      sound: "/sounds/3.wav",
+      color: "#ddedab",
+      icon: <Zap size={16} />,
+    },
+    {
+      id: "4",
+      label: "Sound 4",
+      sound: "/sounds/4.wav",
+      color: "#ffd7d7",
+      icon: <Sparkles size={16} />,
+    },
+    {
+      id: "5",
+      label: "Sound 5",
+      sound: "/sounds/5.wav",
+      color: "#f6db70",
+      icon: <Heart size={16} />,
+    },
+    {
+      id: "6",
+      label: "Sound 6",
+      sound: "/sounds/6.wav",
+      color: "#bacded",
+      icon: <Laugh size={16} />,
+    },
+    {
+      id: "7",
+      label: "Sound 7",
+      sound: "/sounds/7.wav",
+      color: "#f7bbdc",
+      icon: <Volume2 size={16} />,
+    },
+    {
+      id: "8",
+      label: "Empty",
+      sound: "/sounds/1.wav", // Placeholder - reuses sound 1
+      color: "#ddedab",
+      icon: <PartyPopper size={16} />,
+    },
+    {
+      id: "9",
+      label: "Empty",
+      sound: "/sounds/1.wav", // Placeholder - reuses sound 1
+      color: "#ffd7d7",
+      icon: <Music size={16} />,
+    },
+  ];
+
   const sidebarItems = [
     {
       icon: <Home size={22} />,
@@ -93,27 +166,12 @@ function Sidebar() {
         setActiveIndex(3);
       },
     },
-    {
-      icon: <Settings size={22} />,
-      label: "Settings",
-      onClick: () => {
-        console.log("Settings clicked");
-        setActiveIndex(4);
-      },
-    },
-    {
-      icon: <Music size={22} />,
-      label: "Music Board",
-      onClick: () => {
-        console.log("Music clicked");
-        setActiveIndex(4);
-      },
-    },
   ];
 
   return (
     <aside className="fixed top-1/2 left-12 -translate-y-1/2 w-16 bg-white rounded-2xl border-2 border-[var(--color-border)] shadow-lg p-2 z-50">
       <div className="flex flex-col gap-1">
+        {/* Regular sidebar items */}
         {sidebarItems.map((item, index) => (
           <SidebarItem
             key={index}
@@ -123,6 +181,27 @@ function Sidebar() {
             isActive={activeIndex === index}
           />
         ))}
+
+        {/* Divider */}
+        <div className="h-px bg-gray-200 my-1" />
+
+        {/* MenuClickBtn with sound blocks */}
+        <MenuClickBtn
+          icon={<Music size={22} />}
+          label="Goofy Sounds"
+          soundBlocks={goofySoundBlocks}
+        />
+
+        {/* Settings at the bottom */}
+        <SidebarItem
+          icon={<Settings size={22} />}
+          label="Settings"
+          onClick={() => {
+            console.log("Settings clicked");
+            setActiveIndex(4);
+          }}
+          isActive={activeIndex === 4}
+        />
       </div>
     </aside>
   );

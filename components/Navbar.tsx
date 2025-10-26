@@ -1,27 +1,29 @@
 "use client";
 import Dock from "./Dock";
-import { Blocks, PencilLine, Video, UserRound } from "lucide-react";
+import { Blocks, Dices, Video, UserRound } from "lucide-react";
 
 const items = [
-  { icon: <Blocks size={18} />, label: "Home", onClick: () => alert("Home!") },
   {
-    icon: <PencilLine size={18} />,
-    label: "Archive",
+    icon: <Blocks size={24} />,
+    label: "Puzzle",
+    onClick: () => alert("Home!"),
+  },
+  {
+    icon: <Dices size={24} />,
+    label: "Games",
     onClick: () => alert("Archive!"),
   },
   {
-    icon: <Video size={18} />,
-    label: "Profile",
+    icon: <Video size={24} />,
+    label: "Call",
     onClick: () => alert("Profile!"),
   },
   {
-    icon: <UserRound size={18} />,
-    label: "Settings",
+    icon: <UserRound size={24} />,
+    label: "Profile",
     onClick: () => alert("Settings!"),
   },
 ];
-
-import React from "react";
 
 function Navbar() {
   return (
