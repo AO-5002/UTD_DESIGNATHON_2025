@@ -25,7 +25,7 @@ import React from "react";
 
 function Navbar() {
   return (
-    <Dock items={items} panelHeight={68} baseItemSize={50} magnification={70} />
+    <Dock items={items} panelHeight={68} baseItemSize={50} magnification={68} />
   );
 }
 

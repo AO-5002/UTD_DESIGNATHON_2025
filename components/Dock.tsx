@@ -59,6 +59,7 @@ function DockItem({
 }: DockItemProps) {
   const ref = useRef<HTMLDivElement>(null);
   const isHovered = useMotionValue(0);
+  const [showHoverState, setShowHoverState] = useState(false);
 
   const mouseDistance = useTransform(mouseX, (val) => {
     const rect = ref.current?.getBoundingClientRect() ?? {
@@ -82,12 +83,28 @@ function DockItem({
         width: size,
         height: size,
       }}
-      onHoverStart={() => isHovered.set(1)}
-      onHoverEnd={() => isHovered.set(0)}
-      onFocus={() => isHovered.set(1)}
-      onBlur={() => isHovered.set(0)}
+      onHoverStart={() => {
+        isHovered.set(1);
+        setShowHoverState(true);
+      }}
+      onHoverEnd={() => {
+        isHovered.set(0);
+        setShowHoverState(false);
+      }}
+      onFocus={() => {
+        isHovered.set(1);
+        setShowHoverState(true);
+      }}
+      onBlur={() => {
+        isHovered.set(0);
+        setShowHoverState(false);
+      }}
       onClick={onClick}
-      className={`relative inline-flex items-center justify-center rounded-full bg-[#060010] border-neutral-700 border-2 shadow-md ${className}`}
+      className={`relative inline-flex items-center justify-center rounded-full border-2 transition-all ${
+        showHoverState
+          ? "bg-black text-white border-black shadow-md"
+          : "bg-transparent text-black border-transparent shadow-none"
+      } ${className}`}
       tabIndex={0}
       role="button"
       aria-haspopup="true"
@@ -126,10 +143,10 @@ function DockLabel({ children, className = "", isHovered }: DockLabelProps) {
       {isVisible && (
         <motion.div
           initial={{ opacity: 0, y: 0 }}
-          animate={{ opacity: 1, y: -10 }}
+          animate={{ opacity: 1, y: 10 }}
           exit={{ opacity: 0, y: 0 }}
           transition={{ duration: 0.2 }}
-          className={`${className} absolute -top-6 left-1/2 w-fit whitespace-pre rounded-md border border-neutral-700 bg-[#060010] px-2 py-0.5 text-xs text-white`}
+          className={`${className} absolute -bottom-8 left-1/2 w-fit whitespace-pre rounded-md border border-[var(--color-border)] bg-white px-2 py-0.5 text-xs text-black shadow-md`}
           role="tooltip"
           style={{ x: "-50%" }}
         >
@@ -157,7 +174,7 @@ function DockIcon({ children, className = "" }: DockIconProps) {
 export default function Dock({
   items,
   className = "",
-  spring = { mass: 0.1, stiffness: 150, damping: 12 },
+  spring = { mass: 0.1, stiffness: 300, damping: 20 },
   magnification = 70,
   distance = 200,
   panelHeight = 64,
@@ -165,50 +182,35 @@ export default function Dock({
   baseItemSize = 50,
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
-  const isHovered = useMotionValue(0);
-
-  const maxHeight = useMemo(
-    () => Math.max(dockHeight, magnification + magnification / 2 + 4),
-    [magnification]
-  );
-  const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
-  const height = useSpring(heightRow, spring);
 
   return (
     <motion.div
-      style={{ height, scrollbarWidth: "none" }}
-      className="mx-2 flex max-w-full items-center"
+      onMouseMove={({ pageX }) => {
+        mouseX.set(pageX);
+      }}
+      onMouseLeave={() => {
+        mouseX.set(Infinity);
+      }}
+      className={`${className} fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center w-fit gap-4 rounded-2xl border-[var(--color-border)] border-2 bg-white shadow-lg py-2 px-12 z-50`}
+      style={{ height: panelHeight }}
+      role="toolbar"
+      aria-label="Application dock"
     >
-      <motion.div
-        onMouseMove={({ pageX }) => {
-          isHovered.set(1);
-          mouseX.set(pageX);
-        }}
-        onMouseLeave={() => {
-          isHovered.set(0);
-          mouseX.set(Infinity);
-        }}
-        className={`${className} absolute bottom-2 left-1/2 transform -translate-x-1/2 flex items-end w-fit gap-4 rounded-2xl border-neutral-700 border-2 pb-2 px-4`}
-        style={{ height: panelHeight }}
-        role="toolbar"
-        aria-label="Application dock"
-      >
-        {items.map((item, index) => (
-          <DockItem
-            key={index}
-            onClick={item.onClick}
-            className={item.className}
-            mouseX={mouseX}
-            spring={spring}
-            distance={distance}
-            magnification={magnification}
-            baseItemSize={baseItemSize}
-          >
-            <DockIcon>{item.icon}</DockIcon>
-            <DockLabel>{item.label}</DockLabel>
-          </DockItem>
-        ))}
-      </motion.div>
+      {items.map((item, index) => (
+        <DockItem
+          key={index}
+          onClick={item.onClick}
+          className={item.className}
+          mouseX={mouseX}
+          spring={spring}
+          distance={distance}
+          magnification={magnification}
+          baseItemSize={baseItemSize}
+        >
+          <DockIcon>{item.icon}</DockIcon>
+          <DockLabel>{item.label}</DockLabel>
+        </DockItem>
+      ))}
     </motion.div>
   );
 }

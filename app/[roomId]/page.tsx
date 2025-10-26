@@ -1,11 +1,13 @@
 import { PageLayout } from "@/layouts/PageLayout";
-import Navbar from "@/components/Navbar";
+import RoomLayout from "@/layouts/RoomLayout";
 import React from "react";
 
 function page() {
   return (
     <PageLayout>
-      <Navbar />
+      <RoomLayout>
+        <h1>hi</h1>
+      </RoomLayout>
     </PageLayout>
   );
 }
