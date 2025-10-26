@@ -44,9 +44,18 @@ function Page() {
     },
   ]);
 
-  // Shared map to track all piece positions
+  // Shared map to track all piece positions and connections
   const allPiecesRef = useRef(
-    new Map<string, { x: number; y: number; ref: HTMLDivElement | null }>()
+    new Map<
+      string,
+      {
+        x: number;
+        y: number;
+        ref: HTMLDivElement | null;
+        connections: Set<string>;
+        updatePosition: (x: number, y: number, skipIds?: Set<string>) => void;
+      }
+    >()
   );
 
   const handlePositionChange = (id: string, x: number, y: number) => {
@@ -67,6 +76,25 @@ function Page() {
     console.log(`Piece ${piece1Id} connected to ${piece2Id} on ${side} side`);
   };
 
+  const handleDelete = (id: string) => {
+    setPieces((prev) => prev.filter((piece) => piece.id !== id));
+    console.log(`Piece ${id} deleted`);
+  };
+
+  const handleDuplicate = (id: string) => {
+    const pieceToDuplicate = pieces.find((piece) => piece.id === id);
+    if (pieceToDuplicate) {
+      const newPiece = {
+        ...pieceToDuplicate,
+        id: `piece${Date.now()}`,
+        x: pieceToDuplicate.x + 150,
+        y: pieceToDuplicate.y + 150,
+      };
+      setPieces((prev) => [...prev, newPiece]);
+      console.log(`Piece ${id} duplicated as ${newPiece.id}`);
+    }
+  };
+
   return (
     <RoomLayout>
       <InfiniteCanvas>
@@ -81,6 +109,8 @@ function Page() {
             onPositionChange={handlePositionChange}
             onTextChange={handleTextChange}
             onConnect={handleConnect}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
             allPieces={allPiecesRef.current}
           />
         ))}

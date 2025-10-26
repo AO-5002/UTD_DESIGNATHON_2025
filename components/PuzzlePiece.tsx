@@ -12,6 +12,15 @@ import {
 
 type ConnectionSide = "top" | "right" | "bottom" | "left";
 
+type PieceData = {
+  x: number;
+  y: number;
+  ref: HTMLDivElement | null;
+  connections: Set<string>;
+  motionX: any;
+  motionY: any;
+};
+
 type PuzzlePieceProps = {
   id: string;
   initialX?: number;
@@ -27,7 +36,7 @@ type PuzzlePieceProps = {
   ) => void;
   onDelete?: (id: string) => void;
   onDuplicate?: (id: string) => void;
-  allPieces?: Map<string, { x: number; y: number; ref: HTMLDivElement | null }>;
+  allPieces?: Map<string, PieceData>;
 };
 
 const PIECE_SIZE = 120;
@@ -48,12 +57,11 @@ export function PuzzlePiece({
 }: PuzzlePieceProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [pieceText, setPieceText] = useState(text);
-  const [currentX, setCurrentX] = useState(initialX);
-  const [currentY, setCurrentY] = useState(initialY);
+  const [position, setPosition] = useState({ x: initialX, y: initialY });
   const [isDragging, setIsDragging] = useState(false);
+  const [connections, setConnections] = useState<Set<string>>(new Set());
   const pieceRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   const x = useMotionValue(initialX);
   const y = useMotionValue(initialY);
@@ -65,24 +73,38 @@ export function PuzzlePiece({
     }
   }, [isEditing]);
 
-  // Register this piece's position
+  // Sync motion values with position state
+  useEffect(() => {
+    x.set(position.x);
+    y.set(position.y);
+  }, [position.x, position.y]);
+
+  // Register this piece
   useEffect(() => {
     if (pieceRef.current) {
-      allPieces.set(id, { x: currentX, y: currentY, ref: pieceRef.current });
+      allPieces.set(id, {
+        x: position.x,
+        y: position.y,
+        ref: pieceRef.current,
+        connections: connections,
+        motionX: x,
+        motionY: y,
+      });
     }
     return () => {
       allPieces.delete(id);
     };
-  }, [id, currentX, currentY, allPieces]);
+  }, [id, position.x, position.y, connections]);
 
   const findSnapPosition = (dragX: number, dragY: number) => {
     let snapX = dragX;
     let snapY = dragY;
     let snapped = false;
+    let connectedTo: string | null = null;
 
     // Check all other pieces for snap points
     for (const [otherId, otherPiece] of allPieces.entries()) {
-      if (otherId === id) continue;
+      if (otherId === id || connections.has(otherId)) continue;
 
       const otherX = otherPiece.x;
       const otherY = otherPiece.y;
@@ -94,7 +116,9 @@ export function PuzzlePiece({
         snapX = otherX + PIECE_SIZE;
         snapY = otherY;
         snapped = true;
+        connectedTo = otherId;
         onConnect?.(id, otherId, "right");
+        break;
       }
 
       // Check left side connection
@@ -104,7 +128,9 @@ export function PuzzlePiece({
         snapX = otherX - PIECE_SIZE;
         snapY = otherY;
         snapped = true;
+        connectedTo = otherId;
         onConnect?.(id, otherId, "left");
+        break;
       }
 
       // Check bottom side connection
@@ -114,7 +140,9 @@ export function PuzzlePiece({
         snapY = otherY + PIECE_SIZE;
         snapX = otherX;
         snapped = true;
+        connectedTo = otherId;
         onConnect?.(id, otherId, "bottom");
+        break;
       }
 
       // Check top side connection
@@ -124,13 +152,72 @@ export function PuzzlePiece({
         snapY = otherY - PIECE_SIZE;
         snapX = otherX;
         snapped = true;
+        connectedTo = otherId;
         onConnect?.(id, otherId, "top");
+        break;
       }
+    }
 
-      if (snapped) break;
+    // If snapped, create bidirectional connection
+    if (snapped && connectedTo) {
+      setConnections((prev) => {
+        const newConnections = new Set(prev);
+        newConnections.add(connectedTo!);
+        return newConnections;
+      });
+
+      // Also add connection to the other piece
+      const otherPiece = allPieces.get(connectedTo);
+      if (otherPiece) {
+        otherPiece.connections.add(id);
+      }
     }
 
     return { x: snapX, y: snapY, snapped };
+  };
+
+  const moveConnectedPieces = (
+    deltaX: number,
+    deltaY: number,
+    movedIds = new Set<string>()
+  ) => {
+    movedIds.add(id);
+
+    connections.forEach((connectedId) => {
+      if (movedIds.has(connectedId)) return;
+
+      const connectedPiece = allPieces.get(connectedId);
+      if (connectedPiece) {
+        const newX = connectedPiece.x + deltaX;
+        const newY = connectedPiece.y + deltaY;
+
+        // Update motion values for smooth movement
+        connectedPiece.motionX.set(newX);
+        connectedPiece.motionY.set(newY);
+
+        // Update position in the map
+        connectedPiece.x = newX;
+        connectedPiece.y = newY;
+
+        // Recursively move connected pieces
+        movedIds.add(connectedId);
+        const subConnections = connectedPiece.connections;
+        subConnections.forEach((subId) => {
+          if (!movedIds.has(subId)) {
+            const subPiece = allPieces.get(subId);
+            if (subPiece) {
+              const subNewX = subPiece.x + deltaX;
+              const subNewY = subPiece.y + deltaY;
+              subPiece.motionX.set(subNewX);
+              subPiece.motionY.set(subNewY);
+              subPiece.x = subNewX;
+              subPiece.y = subNewY;
+              movedIds.add(subId);
+            }
+          }
+        });
+      }
+    });
   };
 
   const handleTextSave = () => {
@@ -143,14 +230,64 @@ export function PuzzlePiece({
       <ContextMenuTrigger>
         <motion.div
           ref={pieceRef}
+          data-draggable="true"
+          drag
+          dragMomentum={false}
+          dragElastic={0}
+          onDragStart={() => {
+            setIsDragging(true);
+          }}
+          onDrag={(event, info) => {
+            const deltaX = info.delta.x;
+            const deltaY = info.delta.y;
+
+            // Update position in map
+            const piece = allPieces.get(id);
+            if (piece) {
+              piece.x += deltaX;
+              piece.y += deltaY;
+            }
+
+            // Move connected pieces
+            moveConnectedPieces(deltaX, deltaY);
+          }}
+          onDragEnd={(event, info) => {
+            setIsDragging(false);
+            const dragX = position.x + info.offset.x;
+            const dragY = position.y + info.offset.y;
+
+            const {
+              x: snapX,
+              y: snapY,
+              snapped,
+            } = findSnapPosition(dragX, dragY);
+
+            // If snapped, move all connected pieces by snap delta
+            if (snapped) {
+              const snapDeltaX = snapX - dragX;
+              const snapDeltaY = snapY - dragY;
+              moveConnectedPieces(snapDeltaX, snapDeltaY);
+            }
+
+            // Update final position
+            setPosition({ x: snapX, y: snapY });
+            onPositionChange?.(id, snapX, snapY);
+
+            // Update all connected pieces' positions in parent state
+            connections.forEach((connectedId) => {
+              const piece = allPieces.get(connectedId);
+              if (piece) {
+                onPositionChange?.(connectedId, piece.x, piece.y);
+              }
+            });
+          }}
           style={{
             x,
             y,
             width: PIECE_SIZE,
             height: PIECE_SIZE,
           }}
-          initial={{ x: initialX, y: initialY }}
-          className="absolute select-none"
+          className="absolute select-none cursor-grab active:cursor-grabbing"
         >
           {/* Puzzle Piece SVG Shape */}
           <svg
@@ -159,7 +296,6 @@ export function PuzzlePiece({
             viewBox="0 0 120 120"
             className="absolute inset-0 drop-shadow-lg pointer-events-none"
           >
-            {/* Main puzzle piece shape with connectors */}
             <path
               d="M 10 10 
                  L 50 10 
@@ -204,80 +340,67 @@ export function PuzzlePiece({
             />
           </svg>
 
-          {/* Drag Handle - Top Left Corner */}
-          <motion.div
-            ref={dragHandleRef}
-            data-draggable="true"
-            drag
-            dragMomentum={false}
-            dragElastic={0}
-            onDragStart={() => setIsDragging(true)}
-            onDrag={(event, info) => {
-              const newX = initialX + info.offset.x;
-              const newY = initialY + info.offset.y;
-              x.set(newX);
-              y.set(newY);
-            }}
-            onDragEnd={(event, info) => {
-              setIsDragging(false);
-              const dragX = initialX + info.offset.x;
-              const dragY = initialY + info.offset.y;
-
-              const { x: snapX, y: snapY } = findSnapPosition(dragX, dragY);
-
-              setCurrentX(snapX);
-              setCurrentY(snapY);
-              x.set(snapX);
-              y.set(snapY);
-              onPositionChange?.(id, snapX, snapY);
-            }}
-            className="absolute top-2 left-2 w-8 h-8 flex items-center justify-center bg-white/80 rounded-lg cursor-grab active:cursor-grabbing hover:bg-white hover:shadow-md transition-all z-10"
-            whileHover={{ scale: 1.1 }}
-            whileDrag={{ scale: 1.2, cursor: "grabbing" }}
-          >
-            <GripVertical size={16} className="text-gray-600" />
-          </motion.div>
+          {/* Drag Handle Indicator - Top Left Corner */}
+          <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-white/90 rounded-lg pointer-events-none z-10 shadow-sm">
+            <GripVertical size={14} className="text-gray-600" />
+          </div>
 
           {/* Text content area */}
-          <div
-            className="absolute inset-0 flex items-center justify-center p-4 pt-12"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isEditing && !isDragging) setIsEditing(true);
-            }}
-          >
-            {isEditing ? (
-              <textarea
-                ref={textareaRef}
-                value={pieceText}
-                onChange={(e) => setPieceText(e.target.value)}
-                onBlur={handleTextSave}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleTextSave();
-                  }
-                  if (e.key === "Escape") {
-                    setPieceText(text);
-                    setIsEditing(false);
-                  }
-                }}
-                className="w-full h-16 bg-transparent text-center text-xs font-medium resize-none outline-none border-none focus:ring-0"
-                style={{ color: "#2d3748" }}
-                maxLength={50}
-                placeholder="Click to add text..."
-              />
-            ) : (
-              <p className="text-xs font-medium text-gray-800 text-center break-words w-full px-2">
-                {pieceText || "Click to edit"}
-              </p>
-            )}
+          <div className="absolute inset-0 flex items-center justify-center p-4 pt-12 pointer-events-none">
+            <div
+              className="pointer-events-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isEditing && !isDragging) setIsEditing(true);
+              }}
+            >
+              {isEditing ? (
+                <textarea
+                  ref={textareaRef}
+                  value={pieceText}
+                  onChange={(e) => setPieceText(e.target.value)}
+                  onBlur={handleTextSave}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleTextSave();
+                    }
+                    if (e.key === "Escape") {
+                      setPieceText(text);
+                      setIsEditing(false);
+                    }
+                  }}
+                  className="w-full h-16 bg-transparent text-center text-xs font-medium resize-none outline-none border-none focus:ring-0"
+                  style={{ color: "#2d3748" }}
+                  maxLength={50}
+                  placeholder="Click to add text..."
+                />
+              ) : (
+                <p className="text-xs font-medium text-gray-800 text-center break-words w-full px-2 cursor-text">
+                  {pieceText || "Click to edit"}
+                </p>
+              )}
+            </div>
           </div>
         </motion.div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={() => setIsEditing(true)}>
           Edit Text
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            // Disconnect from all pieces
+            connections.forEach((connectedId) => {
+              const piece = allPieces.get(connectedId);
+              if (piece) {
+                piece.connections.delete(id);
+              }
+            });
+            setConnections(new Set());
+          }}
+        >
+          Disconnect All
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onDuplicate?.(id)}>
           Duplicate

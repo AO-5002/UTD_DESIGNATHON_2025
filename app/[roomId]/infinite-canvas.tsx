@@ -58,17 +58,18 @@ export default function InfiniteCanvas({ children }: InfiniteCanvasProps) {
         y: e.clientY - startPos.y,
       };
 
-      // Apply looping when position exceeds boundaries
-      const loopedPosition = loopPosition(newPosition);
-      setPosition(loopedPosition);
+      // Update position without looping during drag
+      setPosition(newPosition);
     },
-    [isPanning, startPos, loopPosition]
+    [isPanning, startPos]
   );
 
-  // Handle mouse up - stop panning
+  // Handle mouse up - stop panning and apply looping
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
-  }, []);
+    // Apply looping only when mouse is released
+    setPosition((prev) => loopPosition(prev));
+  }, [loopPosition]);
 
   // Handle wheel - zoom in/out
   const handleWheel = useCallback(
@@ -114,7 +115,9 @@ export default function InfiniteCanvas({ children }: InfiniteCanvasProps) {
           backgroundImage:
             "radial-gradient(circle, #d1d5db 1.5px, transparent 1.5px)",
           backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
-          backgroundPosition: `${position.x}px ${position.y}px`,
+          backgroundPosition: `${position.x % LOOP_BOUNDARY}px ${
+            position.y % LOOP_BOUNDARY
+          }px`,
         }}
       />
 
