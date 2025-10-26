@@ -1,7 +1,7 @@
 "use client";
 
 import RoomLayout from "@/layouts/RoomLayout";
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import InfiniteCanvas from "./infinite-canvas";
 import { PuzzlePiece } from "@/components/PuzzlePiece";
 import { useParams } from "next/navigation";
@@ -582,17 +582,29 @@ function RoomContent() {
   );
 }
 
-// Main page component
+// Main page component with hydration fix
 export default function Page() {
   const params = useParams();
   const roomId = params.roomId as string;
 
-  // Generate random user name and color
-  const userName = useMemo(() => generateRandomName(), []);
-  const userColor = useMemo(
-    () => CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)],
-    []
-  );
+  // Fix hydration by only generating random values on client
+  const [userName, setUserName] = useState<string>("");
+  const [userColor, setUserColor] = useState<string>("");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // Only run on client side
+    setUserName(generateRandomName());
+    setUserColor(
+      CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)]
+    );
+    setIsMounted(true);
+  }, []);
+
+  // Don't render until mounted to avoid hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <RoomProvider

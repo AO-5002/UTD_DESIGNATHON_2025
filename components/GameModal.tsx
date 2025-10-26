@@ -47,25 +47,35 @@ export function GameModal({ isOpen, onClose, children }: GameModalProps) {
 
           {/* Modal Content */}
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-8">
+            {/* Shadow layer */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl border-2 border-gray-200 p-8"
+              className="absolute w-full max-w-5xl h-[600px] rounded-[50px] bg-black translate-x-3 translate-y-3"
+            />
+
+            {/* Main modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="relative w-full max-w-5xl h-[600px] bg-white rounded-[50px] border-2 border-black p-12 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Close Button */}
               <button
                 onClick={onClose}
-                className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors group"
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-black hover:scale-110 transition-transform group z-10"
                 aria-label="Close modal"
               >
-                <X size={24} className="text-gray-600 group-hover:text-black" />
+                <X size={24} className="text-white" />
               </button>
 
               {/* Content */}
-              {children}
+              <div className="h-full overflow-y-auto">{children}</div>
             </motion.div>
           </div>
         </>

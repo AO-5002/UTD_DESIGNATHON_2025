@@ -5,11 +5,25 @@
 export const playSound = (soundUrl: string) => {
   try {
     const audio = new Audio(soundUrl);
-    audio.play().catch((error) => {
-      console.error("Error playing sound:", error);
-    });
+
+    // Set volume to a reasonable level
+    audio.volume = 0.5;
+
+    // Play with proper error handling
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        // Only log if it's not a user interaction error
+        if (error.name !== "NotAllowedError") {
+          console.error("Error playing sound:", error);
+        }
+        // Silently fail for NotAllowedError (browser autoplay policy)
+      });
+    }
   } catch (error) {
-    console.error("Error creating audio:", error);
+    // Silently catch any other errors
+    console.debug("Audio initialization error:", error);
   }
 };
 

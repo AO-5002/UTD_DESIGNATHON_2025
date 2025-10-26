@@ -159,12 +159,8 @@ function Sidebar() {
   // Listen for new sound events and play them
   useEffect(() => {
     if (!soundEvents || soundEvents.length === 0) {
-      console.log("📭 No sound events yet");
       return;
     }
-
-    console.log("📬 Sound events array length:", soundEvents.length);
-    console.log("📬 Last processed index:", lastProcessedIndexRef.current);
 
     // Process any new events we haven't seen yet
     const newEventsStartIndex = lastProcessedIndexRef.current + 1;
@@ -181,17 +177,27 @@ function Sidebar() {
           event.soundUrl
         );
 
-        // Play the sound
-        const audio = new Audio(event.soundUrl);
-        audio
-          .play()
-          .then(() => {
-            console.log("✅ Sound played successfully:", event.soundUrl);
-          })
-          .catch((error) => {
-            console.error("❌ Error playing sound:", error);
-            console.error("Sound URL:", event.soundUrl);
-          });
+        // Play the sound with proper error handling
+        try {
+          const audio = new Audio(event.soundUrl);
+          audio.volume = 0.5;
+
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log("✅ Sound played successfully:", event.soundUrl);
+              })
+              .catch((error) => {
+                // Only log non-permission errors
+                if (error.name !== "NotAllowedError") {
+                  console.error("❌ Error playing sound:", error);
+                }
+              });
+          }
+        } catch (error) {
+          console.debug("Audio initialization error:", error);
+        }
       });
 
       // Update our last processed index

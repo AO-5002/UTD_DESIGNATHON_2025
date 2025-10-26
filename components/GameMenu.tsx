@@ -1,7 +1,7 @@
 "use client";
 
 import { GameCard } from "./GameCard";
-import { Dices, Gamepad2, Trophy, Puzzle } from "lucide-react";
+import { Dices, Gamepad2, Trophy, Puzzle, Swords } from "lucide-react";
 
 export type Game = {
   id: string;
@@ -20,11 +20,11 @@ export function GamesMenu({ onGameSelect }: GamesMenuProps) {
   // Define your games here - easily add more!
   const games: Game[] = [
     {
-      id: "dice-game",
-      title: "Dice Roll",
-      description: "Roll the dice and test your luck!",
+      id: "mind-turf",
+      title: "Mind Turf",
+      description: "Blast your opponent to have your idea posted!",
       color: "#bacded",
-      icon: <Dices size={48} />,
+      icon: <Swords size={48} />,
       onClick: () => {
         console.log("Starting Dice Game");
         onGameSelect?.("dice-game");
