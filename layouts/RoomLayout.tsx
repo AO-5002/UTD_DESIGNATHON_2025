@@ -32,7 +32,7 @@ function SidebarItem({ icon, label, onClick, isActive }: SidebarItemProps) {
         onClick={onClick}
         className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all duration-200 ${
           isActive
-            ? "bg-linear-to-br from-red-400 to-red-600 text-white shadow-md"
+            ? "bg-gradient-to-br from-[#FFB5B5] to-[#FFCACA] text-[#FF8B8B] shadow-md"
             : "hover:bg-gray-100 text-gray-700 hover:text-black"
         }`}
       >
@@ -103,7 +103,7 @@ function Sidebar() {
   ];
 
   return (
-    <aside className="fixed top-1/2 left-12 -translate-y-1/2 w-16 bg-white rounded-2xl border-2 border-[var(--color-border)] shadow-lg p-2">
+    <aside className="fixed top-1/2 left-12 -translate-y-1/2 w-16 bg-white rounded-2xl border-2 border-[var(--color-border)] shadow-lg p-2 z-50">
       <div className="flex flex-col gap-1">
         {sidebarItems.map((item, index) => (
           <SidebarItem
@@ -121,18 +121,15 @@ function Sidebar() {
 
 function RoomLayout({ children }: Children) {
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navbar (Dock) - Fixed at the top of the page */}
+    <div className="relative min-h-screen w-full">
+      {/* Navbar (Dock) - Fixed at the top, overlaying content */}
       <Navbar />
 
-      {/* Main content area with sidebar */}
-      <div className="flex-1 flex gap-6 mt-20 px-8 pb-8">
-        {/* Sidebar - Fixed position, vertically centered */}
-        <Sidebar />
+      {/* Sidebar - Fixed position, vertically centered, overlaying content */}
+      <Sidebar />
 
-        {/* Main content - Takes full height */}
-        <main className="flex-1 rounded-2xl p-8 h-full">{children}</main>
-      </div>
+      {/* Main content - Full screen, navbar and sidebar overlay on top */}
+      <main className="w-full h-screen">{children}</main>
     </div>
   );
 }

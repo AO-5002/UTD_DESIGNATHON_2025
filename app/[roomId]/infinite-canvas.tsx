@@ -7,12 +7,23 @@ type InfiniteCanvasProps = {
   children?: React.ReactNode;
 };
 
+// Define the boundaries for the canvas (how far you can pan before looping)
+const LOOP_BOUNDARY = 2000; // pixels
+
 export default function InfiniteCanvas({ children }: InfiniteCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+
+  // Function to loop position back when exceeding boundaries
+  const loopPosition = useCallback((pos: { x: number; y: number }) => {
+    return {
+      x: ((pos.x % LOOP_BOUNDARY) + LOOP_BOUNDARY) % LOOP_BOUNDARY,
+      y: ((pos.y % LOOP_BOUNDARY) + LOOP_BOUNDARY) % LOOP_BOUNDARY,
+    };
+  }, []);
 
   // Handle mouse down - start panning
   const handleMouseDown = useCallback(
@@ -37,17 +48,21 @@ export default function InfiniteCanvas({ children }: InfiniteCanvasProps) {
     [position]
   );
 
-  // Handle mouse move - pan the canvas
+  // Handle mouse move - pan the canvas with looping
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!isPanning) return;
 
-      setPosition({
+      const newPosition = {
         x: e.clientX - startPos.x,
         y: e.clientY - startPos.y,
-      });
+      };
+
+      // Apply looping when position exceeds boundaries
+      const loopedPosition = loopPosition(newPosition);
+      setPosition(loopedPosition);
     },
-    [isPanning, startPos]
+    [isPanning, startPos, loopPosition]
   );
 
   // Handle mouse up - stop panning
@@ -84,7 +99,7 @@ export default function InfiniteCanvas({ children }: InfiniteCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0 overflow-hidden bg-[var(--color-primary-50)]"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
