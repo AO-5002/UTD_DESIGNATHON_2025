@@ -15,6 +15,7 @@ type PuzzlePieceProps = {
   onTextChange?: (id: string, text: string) => void;
   onDelete?: (id: string) => void;
   onDuplicate?: (id: string) => void;
+  isBeingEditedBy?: string | null; // User ID of who's editing
 };
 
 const PIECE_SIZE = 120;
@@ -26,10 +27,18 @@ export function PuzzlePiece({
   onTextChange,
   onDelete,
   onDuplicate,
+  isBeingEditedBy = null,
 }: PuzzlePieceProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [pieceText, setPieceText] = useState(text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Update local text when prop changes (from other users)
+  useEffect(() => {
+    if (!isEditing) {
+      setPieceText(text);
+    }
+  }, [text, isEditing]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -37,6 +46,12 @@ export function PuzzlePiece({
       textareaRef.current.select();
     }
   }, [isEditing]);
+
+  const handleTextChange = (newText: string) => {
+    setPieceText(newText);
+    // Real-time updates while typing
+    onTextChange?.(id, newText);
+  };
 
   const handleTextSave = () => {
     setIsEditing(false);
@@ -98,11 +113,18 @@ export function PuzzlePiece({
                  L 60 110
                  Z"
               fill={color}
-              stroke="#2d3748"
-              strokeWidth="2"
-              className="transition-colors hover:brightness-105"
+              stroke={isBeingEditedBy ? "#3b82f6" : "#2d3748"}
+              strokeWidth={isBeingEditedBy ? "3" : "2"}
+              className="transition-all hover:brightness-105"
             />
           </svg>
+
+          {/* Editing indicator */}
+          {isBeingEditedBy && !isEditing && (
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">
+              Someone is editing...
+            </div>
+          )}
 
           {/* Text content area */}
           <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -110,14 +132,14 @@ export function PuzzlePiece({
               className="w-full h-full flex items-center justify-center cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
-                if (!isEditing) setIsEditing(true);
+                if (!isEditing && !isBeingEditedBy) setIsEditing(true);
               }}
             >
               {isEditing ? (
                 <textarea
                   ref={textareaRef}
                   value={pieceText}
-                  onChange={(e) => setPieceText(e.target.value)}
+                  onChange={(e) => handleTextChange(e.target.value)}
                   onBlur={handleTextSave}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -144,7 +166,10 @@ export function PuzzlePiece({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => setIsEditing(true)}>
+        <ContextMenuItem
+          onClick={() => setIsEditing(true)}
+          disabled={!!isBeingEditedBy}
+        >
           Edit Text
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onDuplicate?.(id)}>

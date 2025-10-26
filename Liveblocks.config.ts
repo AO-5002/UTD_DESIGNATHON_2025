@@ -13,6 +13,7 @@ type Piece = {
 
 type Presence = {
   cursor: { x: number; y: number } | null;
+  editingPieceId: string | null; // Track which piece user is editing
 };
 
 type Storage = {
@@ -26,6 +27,7 @@ export const {
   useRoom,
   useSelf,
   useOthers,
+  useUpdateMyPresence,
 } = createRoomContext<Presence, Storage>(client);
 
 export type { Piece, Storage, Presence };
